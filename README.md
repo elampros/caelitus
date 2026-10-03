@@ -77,6 +77,7 @@ The server is a single executable, `caelitus`, with a JSON configuration file.
 ### Everything in Docker (nothing to install but Docker)
 
 ```bash
+git clone https://github.com/elampros/caelitus.git && cd caelitus
 docker compose -f docker/compose.yml up -d --build    # first build takes a few minutes
 ```
 

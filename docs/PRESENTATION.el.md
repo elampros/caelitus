@@ -338,7 +338,7 @@ sequenceDiagram
 Docker:
 
 ```bash
-git clone <αυτό το repository> caelitus && cd caelitus
+git clone https://github.com/elampros/caelitus.git && cd caelitus
 docker compose -f docker/compose.yml up -d --build
 # ανοίξτε το http://localhost:8080 (φορτώνονται 528 βιβλία)
 docker compose -f docker/compose.yml --profile simulate up -d simulator   # ζωντανά likes

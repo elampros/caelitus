@@ -323,7 +323,7 @@ nightly cron job.
 Everything in containers, with nothing to install but Docker:
 
 ```bash
-git clone <this repository> caelitus && cd caelitus
+git clone https://github.com/elampros/caelitus.git && cd caelitus
 docker compose -f docker/compose.yml up -d --build
 # open http://localhost:8080 (528 books are loaded)
 docker compose -f docker/compose.yml --profile simulate up -d simulator   # live likes
