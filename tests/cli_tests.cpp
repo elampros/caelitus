@@ -1,5 +1,7 @@
-// Tests for the --cli client: argument conversion, help, endpoint resolution,
-// and whole runs against a real TcpServer + JsonRpcHandler (no database).
+/// @file
+/// Tests for the --cli client: argument conversion, help, endpoint resolution,
+/// and whole runs against a real TcpServer + JsonRpcHandler (no database).
+/// @ingroup tests
 
 #include "TestHarness.hpp"
 
@@ -247,11 +249,15 @@ TEST(endpoint_from_options_environment_or_configuration) {
 // ---- output ------------------------------------------------------------------------
 
 TEST(formatted_json_matches_a_plain_dump_without_color) {
-    const Json v = Json::parse(R"({"a": [1, 2.5, {"b": null}], "c": "x\"y", "d": {}, "e": [], "f": true})");
+    const Json v = {{"a", {1, 2.5, {{"b", nullptr}}}},
+                    {"c", "x\"y"},
+                    {"d", Json::object()},
+                    {"e", Json::array()},
+                    {"f", true}};
     CHECK_EQ(cli::formatJson(v, false), v.dump(2));
     const std::string colored = cli::formatJson(v, true);
     CHECK(contains(colored, "\033[36m\"a\"\033[0m"));
-    CHECK_EQ(Json::parse(std::string(R"({"x": 1})")), Json::parse(cli::formatJson(Json{{"x", 1}}, false)));
+    CHECK_EQ(Json::parse(cli::formatJson(Json{{"x", 1}}, false)), Json({{"x", 1}}));
 }
 
 TEST(help_shows_usage_parameters_limits_and_errors) {
@@ -473,6 +479,7 @@ TEST(tcp_client_reuses_one_connection_for_several_requests) {
     CHECK_EQ(server.tcp->stats().totalConnections, 1u);
 }
 
+/// Runs every test case of this file (see TestHarness.hpp).
 int main() {
     caelitus::log::LogConfig config;
     config.console = false;  // the test servers' logs would bury the results

@@ -1,3 +1,9 @@
+/// @file
+/// app::HealthMonitor: one health check (database, MQTT, cache, server, likes,
+/// process, jobs), the report for `system.health`, and the log lines for
+/// problems that appear and go away.
+/// @ingroup app
+
 #include "app/HealthMonitor.hpp"
 
 #include "caelitus/Version.hpp"

@@ -1,5 +1,10 @@
 # caelitus
 
+> **New here?** Start with the illustrated overview:
+> **[Presentation (English)](docs/PRESENTATION.md)** ·
+> **[Παρουσίαση (Ελληνικά)](docs/PRESENTATION.el.md)**.
+> This README is the technical guide.
+
 A book catalog server in modern C++ (C++17). Clients talk to it with
 **JSON-RPC 2.0 over TCP**, the data lives in **MariaDB**, and readers' likes
 and dislikes arrive as **MQTT** messages. A small web UI (in `web/`) sits on
@@ -34,7 +39,7 @@ Read it top to bottom once; afterwards use the table of contents.
 11. [Configuration reference](#11-configuration-reference)
 12. [Logging](#12-logging)
 13. [Testing](#13-testing)
-14. [Code documentation (Doxygen)](#14-code-documentation-doxygen)
+14. [Code documentation (Doxygen, TypeDoc)](#14-code-documentation-doxygen-typedoc)
 15. [How to…: common changes, step by step](#15-how-to-common-changes-step-by-step)
 16. [Conventions](#16-conventions)
 17. [Troubleshooting](#17-troubleshooting)
@@ -1295,10 +1300,19 @@ and a fake transaction manager); see `tests/catalog_service_tests.cpp`.
 
 ---
 
-## 14. Code documentation (Doxygen)
+## 14. Code documentation (Doxygen, TypeDoc)
+
+**Every source file is documented** for the tool of its language: C++ for
+Doxygen, TypeScript for TypeDoc. Files that no tool reads (CMake, Dockerfiles,
+shell scripts, configuration) start with a comment that says what they are.
+
+### C++: Doxygen
 
 Every public class and function is documented in its header with `///`
-comments, which CLion shows on hover and Doxygen turns into a website:
+comments, which CLion shows on hover and Doxygen turns into a website. Every
+`.cpp` file and every test file also has a `@file` comment, so the site lists
+what each implementation file holds and what each test suite proves (module
+"tests"):
 
 ```bash
 cmake --build --preset asan --target docs
@@ -1307,8 +1321,14 @@ xdg-open build/asan/docs/html/index.html
 
 The site has a page per module with its role and dependencies, an architecture
 diagram, class diagrams, and the source with cross-references. The build
-reports undocumented items in `build/asan/docs/warnings.log`; it is empty today,
-so keep it that way. Style:
+reports undocumented items in `build/asan/docs/warnings.log` (not on the
+console); it is empty today, so keep it that way:
+
+```bash
+test ! -s build/asan/docs/warnings.log && echo "docs clean" || cat build/asan/docs/warnings.log
+```
+
+Style:
 
 ```cpp
 /// One sentence that says what it is or does (the brief).
@@ -1319,6 +1339,21 @@ so keep it that way. Style:
 /// @throws ValidationError for a non-positive id.
 std::optional<BookDetails> details(BookId id);
 ```
+
+### TypeScript: TypeDoc
+
+The web code (gateway, UI, scripts) uses TSDoc comments (`/** ... */`): each
+file opens with a `@module` comment, and every export is documented.
+
+```bash
+cd web && npm run docs
+xdg-open docs-api/index.html
+```
+
+The types in `web/ui/src/api/generated.ts` take their comments from the
+descriptions in the API's schemas, so a description added in C++
+(`S::describe(...)`) shows up in the OpenRPC document, the API page, the CLI's
+help and the TypeScript docs at once.
 
 ---
 
@@ -1504,12 +1539,15 @@ caelitus/
 │   ├── schema.sql                      the schema (generated)
 │   └── sample/                         sample catalog: JSON source, SQL script, generator
 ├── docs/
+│   ├── PRESENTATION.md, .el.md         the illustrated overview (English, Greek)
+│   ├── images/                         screenshots used by the presentation
 │   ├── openrpc.json                    the API description (generated)
 │   ├── Doxyfile.in, pages/, theme/     Doxygen configuration, overview pages, look
 ├── dev/docker-compose.yml              development database
 ├── docker/                             Dockerfiles and compose file for the whole stack
 ├── web/                                web UI, HTTP/WebSocket gateway, seed and simulator scripts
 ├── history.md                          how the project was built, step by step
+├── LICENSE                             MIT
 └── README.md                           this file
 ```
 

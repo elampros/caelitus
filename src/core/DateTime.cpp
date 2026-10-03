@@ -1,3 +1,8 @@
+/// @file
+/// Timestamp and Date arithmetic, and parsing/formatting of ISO 8601 / RFC 3339
+/// text.
+/// @ingroup core
+
 #include "caelitus/core/DateTime.hpp"
 
 #include <cstdio>

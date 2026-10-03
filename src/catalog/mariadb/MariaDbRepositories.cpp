@@ -1,3 +1,8 @@
+/// @file
+/// The category, author, tag and review repositories in SQL, and the
+/// translation of constraint violations into domain errors.
+/// @ingroup catalog_mariadb
+
 // Category, author, tag and review repositories.
 
 #include "caelitus/catalog/mariadb/MariaDbRepositories.hpp"

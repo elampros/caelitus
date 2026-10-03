@@ -1,3 +1,8 @@
+/// @file
+/// db::ConnectionPool: borrowing and returning connections, validation of idle
+/// ones, waiting with a timeout, statistics.
+/// @ingroup db
+
 #include "caelitus/db/ConnectionPool.hpp"
 
 #include "caelitus/db/DbErrors.hpp"

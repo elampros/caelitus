@@ -1,9 +1,15 @@
-// Publishes random likes/dislikes over MQTT, like many readers' devices
-// would, so the live dashboard has something to show. A few books are far
-// more popular than the rest (Zipf-like), and some are mostly disliked.
-//
-//   npm run simulate                   # 20 reactions/s
-//   RATE=100 npm run simulate
+/**
+ * Publishes random likes/dislikes over MQTT, like many readers' devices
+ * would, so the live dashboard has something to show. A few books are far
+ * more popular than the rest (Zipf-like), and some are mostly disliked.
+ *
+ * ```text
+ *   npm run simulate                   # 20 reactions/s
+ *   RATE=100 npm run simulate
+ * ```
+ *
+ * @module
+ */
 
 import mqtt from "mqtt";
 import { RpcClient } from "../gateway/src/rpcClient.ts";

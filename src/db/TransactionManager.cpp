@@ -1,3 +1,8 @@
+/// @file
+/// db::TransactionManager: begin/commit/rollback, nesting, and retries of
+/// transactions that failed on deadlocks or lost connections.
+/// @ingroup db
+
 #include "caelitus/db/TransactionManager.hpp"
 
 #include "caelitus/db/DbErrors.hpp"

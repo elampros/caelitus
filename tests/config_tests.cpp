@@ -1,4 +1,6 @@
-// Unit tests for AppConfig.
+/// @file
+/// Unit tests for AppConfig.
+/// @ingroup tests
 
 #include "TestHarness.hpp"
 
@@ -343,4 +345,5 @@ TEST(project_config_file_is_valid) {
     CHECK(c.server.port > 0);
 }
 
+/// Runs every test case of this file (see TestHarness.hpp).
 int main() { return test::runAll(); }

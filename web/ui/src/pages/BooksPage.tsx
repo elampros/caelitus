@@ -1,4 +1,8 @@
-// Book search. Filters live in the URL, so a search can be bookmarked or shared.
+/**
+ * Book search. Filters live in the URL, so a search can be bookmarked or shared.
+ *
+ * @module
+ */
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -41,6 +45,7 @@ function useLookups() {
   return { categories, authors, tags };
 }
 
+/** The `/` page: filter sidebar, results grid with paging, and the book panel. */
 export function BooksPage() {
   const [params, setParams] = useSearchParams();
   const { categories, authors, tags } = useLookups();
@@ -58,7 +63,9 @@ export function BooksPage() {
     setParams(next, { replace: true });
   };
 
-  // Debounced title search.
+  /**
+   * Debounced title search.
+   */
   useEffect(() => {
     const t = setTimeout(() => titleInput !== get("title") && update({ title: titleInput.trim() || null }), 300);
     return () => clearTimeout(t);
@@ -93,7 +100,9 @@ export function BooksPage() {
     };
   }, [query, refresh]);
 
-  // Catalog changes elsewhere refresh the list.
+  /**
+   * Catalog changes elsewhere refresh the list.
+   */
   useLive((m) => {
     if (m.type === "event" && m.event !== "reviews") setRefresh((r) => r + 1);
   });

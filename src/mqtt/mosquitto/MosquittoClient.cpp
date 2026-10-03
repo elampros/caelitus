@@ -1,3 +1,8 @@
+/// @file
+/// The libmosquitto transport: connection, callbacks from its network thread,
+/// publish and subscribe calls, last will.
+/// @ingroup mqtt_mosquitto
+
 #include "caelitus/mqtt/mosquitto/MosquittoClient.hpp"
 
 #include <mosquitto.h>

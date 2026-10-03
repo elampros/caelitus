@@ -1,3 +1,8 @@
+/// @file
+/// api::JsonRpcHandler: parsing JSON-RPC 2.0 requests and batches, validating
+/// parameters, running methods and mapping exceptions to error codes.
+/// @ingroup api
+
 #include "caelitus/api/JsonRpc.hpp"
 
 #include "caelitus/api/SchemaValidator.hpp"

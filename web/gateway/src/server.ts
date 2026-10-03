@@ -1,12 +1,18 @@
-// The web gateway. Browsers cannot open raw TCP sockets, so this process
-// speaks HTTP/WebSocket to them and TCP/MQTT to the rest of the system:
-//
-//   POST /rpc            JSON-RPC request or batch, forwarded unchanged to caelitus
-//   GET  /openrpc.json   the API description (rpc.discover)
-//   POST /react          {bookId, kind} -> MQTT like/dislike
-//   GET  /ws             WebSocket: catalog events, likes, server status
-//   GET  /health         gateway, caelitus and broker reachability
-//   GET  /*              the built UI (ui/dist), when present
+/**
+ * The web gateway. Browsers cannot open raw TCP sockets, so this process
+ * speaks HTTP/WebSocket to them and TCP/MQTT to the rest of the system:
+ *
+ * ```text
+ *   POST /rpc            JSON-RPC request or batch, forwarded unchanged to caelitus
+ *   GET  /openrpc.json   the API description (rpc.discover)
+ *   POST /react          {bookId, kind} -> MQTT like/dislike
+ *   GET  /ws             WebSocket: catalog events, likes, server status
+ *   GET  /health         gateway, caelitus and broker reachability
+ *   GET  /*              the built UI (ui/dist), when present
+ * ```
+ *
+ * @module
+ */
 
 import fastifyStatic from "@fastify/static";
 import fastifyWebsocket from "@fastify/websocket";
@@ -106,7 +112,9 @@ app.get("/ws", { websocket: true }, (socket) => {
   socket.on("close", unsubscribe);
 });
 
-// The built UI, if any (in development Vite serves it and proxies the API).
+/**
+ * The built UI, if any (in development Vite serves it and proxies the API).
+ */
 const uiDist = join(dirname(fileURLToPath(import.meta.url)), "../../ui/dist");
 if (existsSync(uiDist)) {
   await app.register(fastifyStatic, { root: uiDist });

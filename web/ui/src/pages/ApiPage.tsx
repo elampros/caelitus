@@ -1,6 +1,10 @@
-// API explorer built from the server's live OpenRPC document (rpc.discover):
-// every method with its parameters, result and errors, a "try it" form, and
-// the shared schemas.
+/**
+ * API explorer built from the server's live OpenRPC document (rpc.discover):
+ * every method with its parameters, result and errors, a "try it" form, and
+ * the shared schemas.
+ *
+ * @module
+ */
 
 import { useEffect, useMemo, useState } from "react";
 import { Search } from "../components/Icons";
@@ -24,7 +28,9 @@ interface Doc {
 
 const refName = (ref: string) => ref.split("/").pop()!;
 
-// A one-line type: "integer ≥ 1", "string (date)", "Book[]", "string | null".
+/**
+ * A one-line type: "integer ≥ 1", "string (date)", "Book[]", "string | null".
+ */
 function typeOf(s: Schema): string {
   if (s.$ref) return refName(s.$ref);
   if (s.oneOf) return s.oneOf.map(typeOf).join(" | ");
@@ -50,7 +56,9 @@ function exampleValue(s: Schema, doc: Doc): unknown {
   return {};
 }
 
-// Required params with placeholder values; optional ones are listed in the table.
+/**
+ * Required params with placeholder values; optional ones are listed in the table.
+ */
 function exampleParams(m: Method, doc: Doc): string {
   const params: Record<string, unknown> = {};
   for (const p of m.params) if (p.required) params[p.name] = exampleValue(p.schema, doc);
@@ -80,6 +88,7 @@ function SchemaView({ schema, doc, onRef }: { schema: Schema; doc: Doc; onRef: (
   return <code className="type">{typeOf(schema)}</code>;
 }
 
+/** The `/api` page: method list with search, method details, schemas. */
 export function ApiPage() {
   const [doc, setDoc] = useState<Doc | null>(null);
   const [error, setError] = useState<string | null>(null);

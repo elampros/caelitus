@@ -1,4 +1,6 @@
-// Tests for TcpServer over real loopback sockets.
+/// @file
+/// Tests for TcpServer over real loopback sockets.
+/// @ingroup tests
 
 #include "LogCapture.hpp"
 #include "TestHarness.hpp"
@@ -18,7 +20,7 @@
 
 using namespace caelitus::net;
 using namespace std::chrono_literals;
-using Clock = std::chrono::steady_clock;
+using Clock = std::chrono::steady_clock;  ///< For timing assertions.
 
 namespace {
 
@@ -407,6 +409,7 @@ TEST(port_in_use_is_an_error) {
     CHECK_THROWS_AS(second.start(), NetError);
 }
 
+/// Runs every test case of this file (see TestHarness.hpp).
 int main() {
     caelitus::log::LogConfig config;
     config.level = "debug";

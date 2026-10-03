@@ -1,12 +1,22 @@
-// JSON-RPC client for the caelitus TCP server: every message is JSON
-// terminated by a NUL byte, and each connection answers in request order.
-// A small pool of persistent connections; replies are matched to requests
-// FIFO per connection. A timed-out request closes its connection, since a
-// late reply would otherwise be matched to the next request.
+/**
+ * JSON-RPC client for the caelitus TCP server: every message is JSON
+ * terminated by a NUL byte, and each connection answers in request order.
+ * A small pool of persistent connections; replies are matched to requests
+ * FIFO per connection. A timed-out request closes its connection, since a
+ * late reply would otherwise be matched to the next request.
+ *
+ * @module
+ */
 
 import net from "node:net";
 
+/** A JSON-RPC error answered by the server (see the README's error table). */
 export class RpcError extends Error {
+  /**
+   * @param code     JSON-RPC error code, e.g. -32001 for "not found".
+   * @param message  The server's message.
+   * @param data     Details, e.g. `{ field, reason }` for invalid parameters.
+   */
   constructor(
     readonly code: number,
     message: string,
@@ -16,12 +26,14 @@ export class RpcError extends Error {
   }
 }
 
+/** A request waiting for its reply on a connection. */
 interface Pending {
   resolve: (reply: string) => void;
   reject: (error: Error) => void;
   timer: NodeJS.Timeout;
 }
 
+/** One persistent TCP connection; replies arrive in request order. */
 class Connection {
   private socket: net.Socket | null = null;
   private connecting: Promise<net.Socket> | null = null;
@@ -38,8 +50,10 @@ class Connection {
     return this.pending.length + (this.socket ? 0 : 1);
   }
 
-  // Sends one message; resolves with the reply text, or with null when no
-  // reply is expected (notifications).
+  /**
+   * Sends one message; resolves with the reply text, or with null when no
+   * reply is expected (notifications).
+   */
   async send(message: string, expectReply: boolean): Promise<string | null> {
     const socket = await this.connect();
     const frame = Buffer.concat([Buffer.from(message, "utf8"), Buffer.from([0])]);
@@ -92,7 +106,9 @@ class Connection {
     }
   }
 
-  // Drops the connection and fails everything waiting on it.
+  /**
+   * Drops the connection and fails everything waiting on it.
+   */
   private fail(error: Error): void {
     const socket = this.socket;
     this.socket = null;
@@ -105,28 +121,41 @@ class Connection {
   }
 }
 
-// Whether a request (or batch) has at least one member that gets a reply.
+/**
+ * Whether a request (or batch) has at least one member that gets a reply.
+ */
 function expectsReply(request: unknown): boolean {
   const members = Array.isArray(request) ? request : [request];
   return members.some((m) => typeof m !== "object" || m === null || "id" in m);
 }
 
+/** A pool of connections to the caelitus server; each call goes to the least busy one. */
 export class RpcClient {
   private readonly pool: Connection[];
   private nextId = 1;
 
+  /**
+   * @param host       The server's address.
+   * @param port       Its JSON-RPC port.
+   * @param size       Connections in the pool.
+   * @param timeoutMs  How long a request may wait for its reply.
+   */
   constructor(host: string, port: number, size = 4, timeoutMs = 15000) {
     this.pool = Array.from({ length: size }, () => new Connection(host, port, timeoutMs));
   }
 
-  // Forwards an already parsed JSON-RPC request or batch; returns the raw
-  // reply text, or null for notifications.
+  /**
+   * Forwards an already parsed JSON-RPC request or batch; returns the raw
+   * reply text, or null for notifications.
+   */
   async forward(request: unknown): Promise<string | null> {
     const connection = this.pool.reduce((a, b) => (b.load < a.load ? b : a));
     return connection.send(JSON.stringify(request), expectsReply(request));
   }
 
-  // Calls one method; resolves with its result or rejects with RpcError.
+  /**
+   * Calls one method; resolves with its result or rejects with RpcError.
+   */
   async call<R = unknown>(method: string, params: Record<string, unknown> = {}): Promise<R> {
     const reply = await this.forward({ jsonrpc: "2.0", id: this.nextId++, method, params });
     const parsed = JSON.parse(reply ?? "null");

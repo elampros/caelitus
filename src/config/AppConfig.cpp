@@ -1,3 +1,8 @@
+/// @file
+/// AppConfig: locating, parsing and validating `config.json` (strict keys,
+/// ranges, `${ENV}` substitution).
+/// @ingroup config
+
 #include "caelitus/config/AppConfig.hpp"
 
 #include "caelitus/core/TimeZone.hpp"

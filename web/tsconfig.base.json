@@ -1,4 +1,6 @@
 {
+  // TypeScript settings shared by the gateway, the UI and the scripts: strict,
+  // ES2022 modules. Each package extends it with its own environment.
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",

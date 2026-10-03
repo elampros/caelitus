@@ -1,3 +1,8 @@
+/// @file
+/// catalog::CategoryService: category use cases, slug derivation and the
+/// "no delete while it has books" rule.
+/// @ingroup catalog
+
 #include "caelitus/catalog/service/CategoryService.hpp"
 
 #include "caelitus/catalog/domain/Rules.hpp"

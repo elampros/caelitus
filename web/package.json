@@ -2,7 +2,10 @@
   "name": "caelitus-web",
   "private": true,
   "type": "module",
-  "workspaces": ["gateway", "ui"],
+  "workspaces": [
+    "gateway",
+    "ui"
+  ],
   "scripts": {
     "gen": "tsx scripts/gen-types.ts",
     "dev": "concurrently -k -n gateway,ui -c blue,green \"npm run dev -w gateway\" \"npm run dev -w ui\"",
@@ -10,12 +13,14 @@
     "start": "npm start -w gateway",
     "seed": "tsx scripts/seed.ts",
     "simulate": "tsx scripts/simulate-likes.ts",
-    "typecheck": "npm run typecheck -w gateway && npm run typecheck -w ui"
+    "typecheck": "npm run typecheck -w gateway && npm run typecheck -w ui",
+    "docs": "typedoc"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "concurrently": "^9.1.0",
     "tsx": "^4.19.0",
+    "typedoc": "^0.28.20",
     "typescript": "^5.7.0"
   }
 }

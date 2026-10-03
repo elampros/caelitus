@@ -1,2 +1,4 @@
+# Generated in web/: dependencies, the built UI and the TypeScript API docs.
 node_modules/
 ui/dist/
+docs-api/

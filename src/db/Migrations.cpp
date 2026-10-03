@@ -1,3 +1,8 @@
+/// @file
+/// db::MigrationRunner: the schema version table, applying pending migrations
+/// in order, and the SQL script form used by `caelitus --schema`.
+/// @ingroup db
+
 #include "caelitus/db/Migrations.hpp"
 
 #include "caelitus/core/DateTime.hpp"

@@ -1,11 +1,21 @@
-// Ranked books for a period: paired horizontal bars (likes, dislikes) per
-// book, value labels at the bar ends, a per-row hover tooltip, and a table
-// view of the same numbers.
+/**
+ * Ranked books for a period: paired horizontal bars (likes, dislikes) per
+ * book, value labels at the bar ends, a per-row hover tooltip, and a table
+ * view of the same numbers.
+ *
+ * @module
+ */
 
 import { useState } from "react";
 import { number } from "../api/format";
 import type { RankedBook } from "../api/generated";
 
+/**
+ * The ranking as paired bars or as a table. Props:
+ * - `items`: ranked books, best first (from `reactions.top`);
+ * - `view`: `"chart"` or `"table"`;
+ * - `onSelect`: called with a book id when a row is clicked.
+ */
 export function TopBooks({ items, view, onSelect }: { items: RankedBook[]; view: "chart" | "table"; onSelect: (id: number) => void }) {
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(1, ...items.map((b) => Math.max(b.likes, b.dislikes)));

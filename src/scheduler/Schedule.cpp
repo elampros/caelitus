@@ -1,3 +1,8 @@
+/// @file
+/// Parsing of `every`, `rate` and `cron` schedules, and computing the next run
+/// (cron in local time, across summer-time changes).
+/// @ingroup scheduler
+
 #include "caelitus/scheduler/Schedule.hpp"
 
 #include <algorithm>

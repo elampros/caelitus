@@ -1,3 +1,8 @@
+/// @file
+/// net::TcpServer on Asio: accepting, `\0` framing, the worker pool, ordered
+/// replies, limits, backpressure, idle timeouts and graceful stop.
+/// @ingroup net
+
 #include "caelitus/net/TcpServer.hpp"
 
 #include "caelitus/log/Log.hpp"

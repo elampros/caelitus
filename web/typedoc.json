@@ -1,0 +1,15 @@
+{
+  // TypeScript API documentation of web/ (npm run docs -> docs-api/index.html).
+  // Every file is a module; validation lists anything exported without a comment.
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "caelitus web",
+  "entryPoints": ["gateway/src", "ui/src", "ui/vite.config.ts", "scripts"],
+  "entryPointStrategy": "expand",
+  "tsconfig": "tsconfig.docs.json",
+  "out": "docs-api",
+  "readme": "README.md",
+  "excludeExternals": true,
+  "sort": ["source-order"],
+  "highlightLanguages": ["bash", "css", "html", "javascript", "json", "jsonc", "mermaid", "sh", "text", "tsx", "typescript"],
+  "validation": { "notExported": true, "invalidLink": true, "notDocumented": true }
+}

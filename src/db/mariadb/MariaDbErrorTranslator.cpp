@@ -1,3 +1,7 @@
+/// @file
+/// MariaDB error numbers and SQL states mapped to db::DatabaseError subclasses.
+/// @ingroup db_mariadb
+
 #include "db/mariadb/MariaDbErrorTranslator.hpp"
 
 #include "caelitus/db/DbErrors.hpp"

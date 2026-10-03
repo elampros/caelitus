@@ -34,6 +34,7 @@
     "schemas": {
       "Author": {
         "additionalProperties": false,
+        "description": "An author with all their details",
         "properties": {
           "bio": {
             "oneOf": [
@@ -91,6 +92,7 @@
       },
       "AuthorPage": {
         "additionalProperties": false,
+        "description": "One page of authors",
         "properties": {
           "items": {
             "items": {
@@ -128,6 +130,7 @@
       },
       "AuthorRef": {
         "additionalProperties": false,
+        "description": "An author as listed in a book, in cover order",
         "properties": {
           "id": {
             "description": "Positive integer id",
@@ -280,6 +283,7 @@
       },
       "BookPage": {
         "additionalProperties": false,
+        "description": "One page of book search results",
         "properties": {
           "items": {
             "items": {
@@ -398,6 +402,7 @@
       },
       "Category": {
         "additionalProperties": false,
+        "description": "A book category (flat: one per book)",
         "properties": {
           "id": {
             "description": "Positive integer id",
@@ -425,6 +430,7 @@
       },
       "HealthReport": {
         "additionalProperties": false,
+        "description": "The latest health check of every part of the server",
         "properties": {
           "bookCache": {
             "additionalProperties": false,
@@ -689,6 +695,7 @@
       },
       "Job": {
         "additionalProperties": false,
+        "description": "A scheduled job: its schedule, state and history",
         "properties": {
           "consecutiveFailures": {
             "description": "Failures since the last success",
@@ -807,6 +814,7 @@
       },
       "RankedBook": {
         "additionalProperties": false,
+        "description": "One book of a ranking",
         "properties": {
           "bookId": {
             "description": "Positive integer id",
@@ -839,6 +847,7 @@
       },
       "ReactionCounts": {
         "additionalProperties": false,
+        "description": "Likes and dislikes of one book in one period",
         "properties": {
           "dislikes": {
             "minimum": 0,
@@ -862,6 +871,7 @@
       },
       "ReactionStats": {
         "additionalProperties": false,
+        "description": "A book's likes and dislikes for every period (days in the catalog time zone)",
         "properties": {
           "bookId": {
             "description": "Positive integer id",
@@ -909,6 +919,7 @@
       },
       "Review": {
         "additionalProperties": false,
+        "description": "A reader's review of a book, with a rating of 1-5",
         "properties": {
           "body": {
             "type": "string"
@@ -964,6 +975,7 @@
       },
       "ReviewPage": {
         "additionalProperties": false,
+        "description": "One page of a book's reviews, newest first",
         "properties": {
           "items": {
             "items": {
@@ -1001,6 +1013,7 @@
       },
       "TagUsage": {
         "additionalProperties": false,
+        "description": "A tag and how many books carry it",
         "properties": {
           "bookCount": {
             "minimum": 1,
@@ -1018,6 +1031,7 @@
       },
       "TopBooks": {
         "additionalProperties": false,
+        "description": "The most liked (or disliked) books of a period, best first",
         "properties": {
           "from": {
             "description": "First day; null for allTime",

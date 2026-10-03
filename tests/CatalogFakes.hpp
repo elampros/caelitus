@@ -1,7 +1,23 @@
 #pragma once
 
-// In-memory catalog repositories, a transaction manager with real rollback
-// (snapshot/restore) and a recording publisher, for service and API tests.
+/// @file
+/// In-memory catalog repositories, a transaction manager with real rollback
+/// (snapshot/restore) and a recording publisher, for service and API tests.
+///
+/// All fakes share one fakes::Store, so a test can build real services on them
+/// and then look at the store directly:
+///
+/// @code
+/// fakes::Store store;
+/// catalog::CategoryService categories(std::make_shared<fakes::FakeCategories>(store));
+/// categories.create("Science Fiction");
+/// CHECK_EQ(store.categories.size(), 1u);
+/// @endcode
+///
+/// The fakes enforce the same uniqueness and version rules as the SQL
+/// repositories, throwing the same domain errors, so service tests exercise the
+/// real error paths.
+/// @ingroup tests
 
 #include "TestHarness.hpp"
 
@@ -17,6 +33,7 @@
 #include <map>
 #include <mutex>
 
+/// In-memory stand-ins for the catalog's repositories, transactions and MQTT publisher.
 namespace fakes {
 
 using namespace caelitus;
@@ -24,16 +41,19 @@ using namespace caelitus::catalog;
 
 // ---- In-memory storage -------------------------------------------------------
 
+/// The "database" of the fakes: plain maps by id. Copyable, which is how
+/// FakeTx rolls back.
 struct Store {
-    std::map<std::int64_t, Category> categories;
-    std::map<std::int64_t, Author> authors;
-    std::map<std::int64_t, Tag> tags;
-    std::map<std::int64_t, Book> books;
-    std::map<std::int64_t, Review> reviews;
-    std::map<std::pair<std::int64_t, std::int64_t>, ReactionCounts> dailyReactions;  // (book, day) -> counts
-    std::map<std::int64_t, ReactionCounts> reactionTotals;                           // book -> all time
-    std::int64_t nextId = 1;
+    std::map<std::int64_t, Category> categories;                                     ///< By id.
+    std::map<std::int64_t, Author> authors;                                          ///< By id.
+    std::map<std::int64_t, Tag> tags;                                                ///< By id.
+    std::map<std::int64_t, Book> books;                                              ///< By id.
+    std::map<std::int64_t, Review> reviews;                                          ///< By id.
+    std::map<std::pair<std::int64_t, std::int64_t>, ReactionCounts> dailyReactions;  ///< (book, day number) -> counts.
+    std::map<std::int64_t, ReactionCounts> reactionTotals;                           ///< Book -> all-time counts.
+    std::int64_t nextId = 1;  ///< Next id for any entity (ids are unique across tables).
 
+    /// True if some book lists author `a` (the "author has books" rule).
     bool bookUsesAuthor(AuthorId a) const {
         for (const auto& [id, b] : books)
             if (std::find(b.authorIds.begin(), b.authorIds.end(), a) != b.authorIds.end()) return true;
@@ -41,13 +61,15 @@ struct Store {
     }
 };
 
-// Runs work directly; restores the store if it throws (a real rollback).
+/// Runs work directly; restores the store if it throws (a real rollback).
+/// Nested transactions join the outer one, as with the real manager.
 class FakeTx final : public db::ITransactionManager {
 public:
+    /// @param s  The store to snapshot and restore.
     explicit FakeTx(Store& s) : store_(s) {}
-    int commits = 0;
-    int rollbacks = 0;
-    std::vector<db::TransactionOptions> options;
+    int commits = 0;                              ///< Outermost transactions that succeeded.
+    int rollbacks = 0;                            ///< Outermost transactions that threw and were undone.
+    std::vector<db::TransactionOptions> options;  ///< The options of every outermost transaction.
 
 protected:
     void run(const db::TransactionOptions& opts, const std::function<void()>& work) override {
@@ -76,8 +98,10 @@ private:
 
 inline thread_local int FakeTx::depth_ = 0;
 
+/// Categories; names and slugs are unique (`name_taken`, `slug_taken`).
 class FakeCategories final : public ICategoryRepository {
 public:
+    /// @param s  Where the data lives.
     explicit FakeCategories(Store& s) : s_(s) {}
     CategoryId insert(const Category& c) override {
         checkUnique(c);
@@ -119,8 +143,10 @@ private:
     Store& s_;
 };
 
+/// Authors, with optimistic locking on `version`.
 class FakeAuthors final : public IAuthorRepository {
 public:
+    /// @param s  Where the data lives.
     explicit FakeAuthors(Store& s) : s_(s) {}
     AuthorId insert(const Author& a) override {
         Author stored = a;
@@ -167,8 +193,10 @@ private:
     Store& s_;
 };
 
+/// Tags, created on first use.
 class FakeTags final : public ITagRepository {
 public:
+    /// @param s  Where the data lives.
     explicit FakeTags(Store& s) : s_(s) {}
     std::vector<Tag> findOrCreate(const std::vector<std::string>& names) override {
         std::vector<Tag> out;
@@ -190,10 +218,12 @@ private:
     Store& s_;
 };
 
+/// Books: search filters, ISBN uniqueness, optimistic locking, rating updates.
 class FakeBooks final : public IBookRepository {
 public:
+    /// @param s  Where the data lives.
     explicit FakeBooks(Store& s) : s_(s) {}
-    std::optional<BookQuery> lastQuery;
+    std::optional<BookQuery> lastQuery;  ///< The last search(), to check how services build queries.
 
     BookId insert(const Book& b) override {
         checkIsbn(b);
@@ -299,8 +329,10 @@ private:
     Store& s_;
 };
 
+/// Reviews of books.
 class FakeReviews final : public IReviewRepository {
 public:
+    /// @param s  Where the data lives.
     explicit FakeReviews(Store& s) : s_(s) {}
     ReviewId insert(const Review& r) override {
         Review stored = r;
@@ -333,9 +365,10 @@ private:
     Store& s_;
 };
 
+/// Records every published message instead of sending it.
 class FakePublisher final : public mqtt::IMqttPublisher {
 public:
-    std::vector<std::pair<std::string, std::string>> sent;
+    std::vector<std::pair<std::string, std::string>> sent;  ///< (topic, payload), in publish order.
 
 protected:
     bool doPublish(std::string_view topic, std::string_view payload, const mqtt::PublishOptions&) override {
@@ -348,11 +381,13 @@ private:
     std::mutex mutex_;
 };
 
+/// Per-day like/dislike counts, with a switch to simulate a failing database.
 class FakeReactions final : public IReactionRepository {
 public:
+    /// @param s  Where the counts live.
     explicit FakeReactions(Store& s) : s_(s) {}
-    std::atomic<bool> failNext{false};  // simulate the database being down for one call
-    std::atomic<int> addCalls{0};
+    std::atomic<bool> failNext{false};  ///< Make the next add() throw, as if the database were down.
+    std::atomic<int> addCalls{0};       ///< How many times add() was called (flush checks).
 
     std::int64_t add(const std::vector<DailyReactions>& deltas) override {
         ++addCalls;

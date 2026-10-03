@@ -1,3 +1,8 @@
+/// @file
+/// The book repository in SQL: search with every filter and sort order,
+/// authors and tags per book, optimistic locking, row locks for rating updates.
+/// @ingroup catalog_mariadb
+
 #include "caelitus/catalog/mariadb/MariaDbRepositories.hpp"
 
 #include "caelitus/core/DomainErrors.hpp"

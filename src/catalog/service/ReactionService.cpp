@@ -1,3 +1,8 @@
+/// @file
+/// catalog::ReactionService: the in-memory like buffer, its periodic flush,
+/// per-period counts and rankings in the catalog time zone.
+/// @ingroup catalog
+
 #include "caelitus/catalog/service/ReactionService.hpp"
 
 namespace caelitus::catalog {

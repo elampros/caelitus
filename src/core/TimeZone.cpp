@@ -1,3 +1,8 @@
+/// @file
+/// TimeZone: UTC and the European zones, with their summer-time rules, for
+/// local-to-UTC conversions.
+/// @ingroup core
+
 #include "caelitus/core/TimeZone.hpp"
 
 #include <map>

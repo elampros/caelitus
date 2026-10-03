@@ -1,5 +1,7 @@
-// Unit tests for the database layer. No server needed: a scripted fake
-// connection stands in for MariaDB.
+/// @file
+/// Unit tests for the database layer. No server needed: a scripted fake
+/// connection stands in for MariaDB.
+/// @ingroup tests
 
 #include "LogCapture.hpp"
 #include "TestHarness.hpp"
@@ -576,6 +578,7 @@ TEST(translator_maps_error_codes) {
     CHECK(caught);
 }
 
+/// Runs every test case of this file (see TestHarness.hpp).
 int main() {
     caelitus::log::init(testLogConfig());
     return test::runAll();

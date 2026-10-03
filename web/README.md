@@ -302,6 +302,7 @@ shows in `reactions.get`.
 ```text
 web/
 ├── package.json             workspaces (gateway, ui) and the top-level scripts
+├── typedoc.json, tsconfig.docs.json   code documentation (npm run docs)
 ├── gateway/src/
 │   ├── server.ts            HTTP endpoints, WebSocket, static UI (Fastify)
 │   ├── rpcClient.ts         JSON-RPC over TCP: connection pool, \0 framing, timeouts
@@ -358,6 +359,22 @@ npm run typecheck                              # shows every place in the UI tha
   bundled with the app (`@fontsource-variable/inter`, Greek included), so it
   works offline. The likes/dislikes chart colors are validated for color-blind
   readers and contrast in both themes; keep them when restyling.
+- **Documentation:** every file opens with a TSDoc `@module` comment and every
+  export has a `/** ... */` comment; keep it that way for new code.
+
+### Code documentation: `npm run docs`
+
+[TypeDoc](https://typedoc.org) turns the TSDoc comments of the gateway, the UI
+and the scripts into a website, one page per file:
+
+```bash
+npm run docs                 # writes docs-api/ (not committed)
+xdg-open docs-api/index.html
+```
+
+Its settings are in `typedoc.json`, with `tsconfig.docs.json`, which compiles
+the three parts together. The comments of `ui/src/api/generated.ts` come from
+the descriptions of the API's schemas in C++, through `npm run gen`.
 
 ---
 
@@ -393,6 +410,7 @@ All from `web/`:
 | `npm run simulate` | Random likes over MQTT |
 | `npm run gen` | Regenerates `ui/src/api/generated.ts` |
 | `npm run typecheck` | Strict TypeScript check of gateway and UI |
+| `npm run docs` | TypeScript API documentation in `docs-api/` (TypeDoc) |
 
 ---
 

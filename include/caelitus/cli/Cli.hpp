@@ -99,6 +99,7 @@ std::pair<std::string, std::uint16_t> resolveEndpoint(const Options& options);
 /// Values are converted to the schema's type (`"42"` becomes the integer 42).
 /// Range and length limits are left to the server, which reports them.
 /// @param method  An OpenRPC method object (`name`, `params`).
+/// @param words   What follows the method name on the command line.
 /// @throws UsageError for an unknown parameter (with a suggestion), a value of
 ///         the wrong type, or a missing required parameter.
 Json buildParams(const Json& method, const std::vector<std::string>& words);

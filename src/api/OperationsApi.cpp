@@ -1,3 +1,8 @@
+/// @file
+/// The scheduler methods (`scheduler.list`, `get`, `run`, `pause`, `resume`),
+/// `system.health`, and their result schemas.
+/// @ingroup api
+
 #include "caelitus/api/OperationsApi.hpp"
 
 #include "caelitus/api/Schema.hpp"
@@ -72,57 +77,64 @@ Json toJson(const HealthReport& h) {
 void registerSchemas(JsonRpcHandler& rpc) {
     const Json time = S::nullable(S::dateTime());
     rpc.addSchema("Job",
-                  S::object({
-                      {"name", S::describe(S::string(1), "Unique job name")},
-                      {"description", S::string()},
-                      {"schedule", S::describe(S::string(), "e.g. \"every 15s\", \"cron 0 3 * * * (Europe/Athens)\"")},
-                      {"paused", S::describe(S::boolean(), "Paused jobs only run when started by hand")},
-                      {"running", S::boolean()},
-                      {"nextRun", S::describe(time, "Next planned start; null while paused or running")},
-                      {"lastStart", time},
-                      {"lastEnd", time},
-                      {"lastDurationMs", S::nullable(S::number(0))},
-                      {"lastResult", S::enumOf({"never", "ok", "failed"})},
-                      {"lastError", S::describe(S::nullable(S::string()), "Message of the last failure")},
-                      {"runs", S::integer(0)},
-                      {"failures", S::integer(0)},
-                      {"consecutiveFailures", S::describe(S::integer(0), "Failures since the last success")},
-                  }));
+                  S::describe(S::object({
+                                  {"name", S::describe(S::string(1), "Unique job name")},
+                                  {"description", S::string()},
+                                  {"schedule",
+                                   S::describe(S::string(), "e.g. \"every 15s\", \"cron 0 3 * * * (Europe/Athens)\"")},
+                                  {"paused", S::describe(S::boolean(), "Paused jobs only run when started by hand")},
+                                  {"running", S::boolean()},
+                                  {"nextRun", S::describe(time, "Next planned start; null while paused or running")},
+                                  {"lastStart", time},
+                                  {"lastEnd", time},
+                                  {"lastDurationMs", S::nullable(S::number(0))},
+                                  {"lastResult", S::enumOf({"never", "ok", "failed"})},
+                                  {"lastError", S::describe(S::nullable(S::string()), "Message of the last failure")},
+                                  {"runs", S::integer(0)},
+                                  {"failures", S::integer(0)},
+                                  {"consecutiveFailures",
+                                   S::describe(S::integer(0), "Failures since the last success")},
+                              }),
+                              "A scheduled job: its schedule, state and history"));
     const Json count = S::integer(0);
-    rpc.addSchema("HealthReport",
-                  S::object({
-                      {"status", S::describe(S::enumOf({"ok", "degraded"}), "degraded when problems is not empty")},
-                      {"problems", S::describe(S::array(S::string()), "What is wrong, one sentence each")},
-                      {"checkedAt", S::dateTime()},
-                      {"uptimeSeconds", count},
-                      {"version", S::string()},
-                      {"database", S::object({{"up", S::boolean()},
-                                              {"pingMs", S::nullable(S::number(0))},
-                                              {"openConnections", count},
-                                              {"idleConnections", count},
-                                              {"maxConnections", count}})},
-                      {"mqtt", S::object({{"connected", S::boolean()},
-                                          {"published", count},
-                                          {"publishDropped", count},
-                                          {"received", count},
-                                          {"receiveDropped", count}})},
-                      {"bookCache", S::object({{"books", count},
-                                               {"approxBytes", S::describe(count, "Estimated memory use")},
-                                               {"hits", count},
-                                               {"misses", count}})},
-                      {"server", S::object({{"activeConnections", count},
-                                            {"totalConnections", count},
-                                            {"requests", count},
-                                            {"handlerErrors", count},
-                                            {"protocolErrors", count}})},
-                      {"reactions", S::object({{"pending", S::describe(count, "Book-days waiting for the next flush")},
-                                               {"capacity", count},
-                                               {"dropped", count}})},
-                      {"process", S::object({{"memoryBytes", S::describe(S::nullable(count), "Resident memory (RSS)")},
-                                             {"threads", S::nullable(count)}})},
-                      {"jobs",
-                       S::object({{"total", count}, {"paused", count}, {"running", count}, {"failing", count}})},
-                  }));
+    rpc.addSchema(
+        "HealthReport",
+        S::describe(S::object({
+                        {"status", S::describe(S::enumOf({"ok", "degraded"}), "degraded when problems is not empty")},
+                        {"problems", S::describe(S::array(S::string()), "What is wrong, one sentence each")},
+                        {"checkedAt", S::dateTime()},
+                        {"uptimeSeconds", count},
+                        {"version", S::string()},
+                        {"database", S::object({{"up", S::boolean()},
+                                                {"pingMs", S::nullable(S::number(0))},
+                                                {"openConnections", count},
+                                                {"idleConnections", count},
+                                                {"maxConnections", count}})},
+                        {"mqtt", S::object({{"connected", S::boolean()},
+                                            {"published", count},
+                                            {"publishDropped", count},
+                                            {"received", count},
+                                            {"receiveDropped", count}})},
+                        {"bookCache", S::object({{"books", count},
+                                                 {"approxBytes", S::describe(count, "Estimated memory use")},
+                                                 {"hits", count},
+                                                 {"misses", count}})},
+                        {"server", S::object({{"activeConnections", count},
+                                              {"totalConnections", count},
+                                              {"requests", count},
+                                              {"handlerErrors", count},
+                                              {"protocolErrors", count}})},
+                        {"reactions",
+                         S::object({{"pending", S::describe(count, "Book-days waiting for the next flush")},
+                                    {"capacity", count},
+                                    {"dropped", count}})},
+                        {"process",
+                         S::object({{"memoryBytes", S::describe(S::nullable(count), "Resident memory (RSS)")},
+                                    {"threads", S::nullable(count)}})},
+                        {"jobs",
+                         S::object({{"total", count}, {"paused", count}, {"running", count}, {"failing", count}})},
+                    }),
+                    "The latest health check of every part of the server"));
 }
 
 scheduler::Scheduler& need(const std::shared_ptr<scheduler::Scheduler>& s) {

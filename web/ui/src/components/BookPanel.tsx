@@ -1,5 +1,9 @@
-// One book: details, likes per period (live), reviews with a form to add one,
-// and the switch that lets it accept likes/dislikes over MQTT.
+/**
+ * One book: details, likes per period (live), reviews with a form to add one,
+ * and the switch that lets it accept likes/dislikes over MQTT.
+ *
+ * @module
+ */
 
 import { useEffect, useRef, useState } from "react";
 import { react, rpc, RpcError } from "../api/client";
@@ -12,6 +16,12 @@ import { Close, Star, ThumbDown, ThumbUp } from "./Icons";
 
 const periods = ["today", "yesterday", "last7Days", "last30Days", "lastYear", "allTime"] as const;
 
+/**
+ * The side panel of one book. Props:
+ * - `id`: the book to show;
+ * - `onClose`: called when the user closes the panel;
+ * - `onChanged`: called after the book changed (likes switch, new review), so the list can refresh.
+ */
 export function BookPanel({ id, onClose, onChanged }: { id: number; onClose: () => void; onChanged: () => void }) {
   const [book, setBook] = useState<Book | null>(null);
   const [stats, setStats] = useState<ReactionStats | null>(null);
@@ -44,8 +54,10 @@ export function BookPanel({ id, onClose, onChanged }: { id: number; onClose: () 
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // Counts are written once a second on the server: refresh shortly after
-  // likes for this book arrive.
+  /**
+   * Counts are written once a second on the server: refresh shortly after
+   * likes for this book arrive.
+   */
   useLive((m) => {
     if ((m.type === "reaction" || m.type === "event") && m.bookId === id) {
       clearTimeout(statsTimer.current);

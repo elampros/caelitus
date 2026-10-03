@@ -1,5 +1,9 @@
-// Book titles for live messages (which carry only ids). Unknown ids are
-// collected for a moment and fetched in one JSON-RPC batch.
+/**
+ * Book titles for live messages (which carry only ids). Unknown ids are
+ * collected for a moment and fetched in one JSON-RPC batch.
+ *
+ * @module
+ */
 
 import { useEffect, useReducer } from "react";
 import { rpcBatch, RpcError } from "./client";
@@ -18,10 +22,15 @@ async function flush() {
   subscribers.forEach((s) => s());
 }
 
+/** Records a title already at hand (e.g. from a search), saving a request later. */
 export function rememberTitle(id: number, title: string) {
   titles.set(id, title);
 }
 
+/**
+ * React hook returning `title(id)`: the book's title if known, else `#id` for
+ * now; the component re-renders once the batch with the title arrives.
+ */
 export function useTitle(): (id: number) => string {
   const [, rerender] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {

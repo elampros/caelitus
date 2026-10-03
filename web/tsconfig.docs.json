@@ -1,0 +1,12 @@
+{
+  // For TypeDoc only (npm run docs): one program over the gateway, the UI and
+  // the scripts, with both Node.js and browser types available.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["node", "vite/client"],
+    "noEmit": true
+  },
+  "include": ["gateway/src", "ui/src", "ui/vite.config.ts", "scripts"]
+}

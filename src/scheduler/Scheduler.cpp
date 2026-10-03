@@ -1,3 +1,8 @@
+/// @file
+/// scheduler::Scheduler: the timer thread, the worker pool, no-overlap,
+/// retries with backoff, timeout warnings, pause/resume and job status.
+/// @ingroup scheduler
+
 #include "caelitus/scheduler/Scheduler.hpp"
 
 #include <random>

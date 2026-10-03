@@ -1,6 +1,14 @@
-// Generated from docs/openrpc.json (Caelitus Catalog API 1.0.0) by web/scripts/gen-types.ts.
-// Do not edit: run `npm run gen` instead.
+/**
+ * Types of the caelitus JSON-RPC API, generated from docs/openrpc.json (Caelitus Catalog API 1.0.0)
+ * by web/scripts/gen-types.ts. Do not edit: run `npm run gen` instead.
+ *
+ * One type per schema of the API description, and {@link Methods}, which
+ * the typed `rpc()` client uses to check every call's parameters and result.
+ *
+ * @module
+ */
 
+/** An author with all their details */
 export type Author = {
   bio: string | null;
   birthDate: string | null;
@@ -13,6 +21,7 @@ export type Author = {
   version: number;
 };
 
+/** One page of authors */
 export type AuthorPage = {
   items: Author[];
   page: number;
@@ -22,6 +31,7 @@ export type AuthorPage = {
   total: number;
 };
 
+/** An author as listed in a book, in cover order */
 export type AuthorRef = {
   /** Positive integer id */
   id: number;
@@ -53,6 +63,7 @@ export type Book = {
   version: number;
 };
 
+/** One page of book search results */
 export type BookPage = {
   items: BookSummary[];
   page: number;
@@ -80,6 +91,7 @@ export type BookSummary = {
   title: string;
 };
 
+/** A book category (flat: one per book) */
 export type Category = {
   /** Positive integer id */
   id: number;
@@ -88,6 +100,7 @@ export type Category = {
   slug: string;
 };
 
+/** The latest health check of every part of the server */
 export type HealthReport = {
   bookCache: {
     /** Estimated memory use */
@@ -143,6 +156,7 @@ export type HealthReport = {
   version: string;
 };
 
+/** A scheduled job: its schedule, state and history */
 export type Job = {
   /** Failures since the last success */
   consecutiveFailures: number;
@@ -166,6 +180,7 @@ export type Job = {
   schedule: string;
 };
 
+/** One book of a ranking */
 export type RankedBook = {
   /** Positive integer id */
   bookId: number;
@@ -175,6 +190,7 @@ export type RankedBook = {
   title: string;
 };
 
+/** Likes and dislikes of one book in one period */
 export type ReactionCounts = {
   dislikes: number;
   likes: number;
@@ -182,6 +198,7 @@ export type ReactionCounts = {
   score: number;
 };
 
+/** A book's likes and dislikes for every period (days in the catalog time zone) */
 export type ReactionStats = {
   /** Positive integer id */
   bookId: number;
@@ -195,6 +212,7 @@ export type ReactionStats = {
   };
 };
 
+/** A reader's review of a book, with a rating of 1-5 */
 export type Review = {
   body: string;
   /** Positive integer id */
@@ -208,6 +226,7 @@ export type Review = {
   updatedAt: string;
 };
 
+/** One page of a book's reviews, newest first */
 export type ReviewPage = {
   items: Review[];
   page: number;
@@ -217,11 +236,13 @@ export type ReviewPage = {
   total: number;
 };
 
+/** A tag and how many books carry it */
 export type TagUsage = {
   bookCount: number;
   name: string;
 };
 
+/** The most liked (or disliked) books of a period, best first */
 export type TopBooks = {
   /** First day; null for allTime */
   from: string | null;
@@ -231,6 +252,7 @@ export type TopBooks = {
   to: string | null;
 };
 
+/** Every method of the API: its parameters (by name) and its result. */
 export interface Methods {
   /** Creates an author. */
   "authors.create": {
@@ -583,4 +605,5 @@ export interface Methods {
   };
 }
 
+/** The name of any API method. */
 export type MethodName = keyof Methods;

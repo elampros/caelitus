@@ -1,9 +1,19 @@
-// Typed JSON-RPC client over the gateway's POST /rpc. Method names, params
-// and results come from types generated from the server's OpenRPC document.
+/**
+ * Typed JSON-RPC client over the gateway's POST /rpc. Method names, params
+ * and results come from types generated from the server's OpenRPC document.
+ *
+ * @module
+ */
 
 import type { MethodName, Methods } from "./generated";
 
+/** A JSON-RPC error from the server, or `-32003` when the gateway itself failed. */
 export class RpcError extends Error {
+  /**
+   * @param code     JSON-RPC error code.
+   * @param message  The server's message.
+   * @param data     Details: `code` (machine-readable), `field` and `reason` for invalid parameters.
+   */
   constructor(
     readonly code: number,
     message: string,
@@ -11,7 +21,9 @@ export class RpcError extends Error {
   ) {
     super(message);
   }
-  // A message fit for the user: validation details when there are some.
+  /**
+   * A message fit for the user: validation details when there are some.
+   */
   get detail(): string {
     return this.data?.reason ?? this.message;
   }
@@ -38,14 +50,21 @@ async function post(body: unknown): Promise<any> {
   }
 }
 
+/**
+ * Calls one method. The method name, its parameters and its result are typed
+ * from the generated {@link Methods}: `await rpc("books.get", { id: 1 })` is a `Book`.
+ * @throws RpcError when the server answers with an error.
+ */
 export async function rpc<M extends MethodName>(method: M, ...[params]: ParamsArg<M>): Promise<Methods[M]["result"]> {
   const reply = await post({ jsonrpc: "2.0", id: nextId++, method, params: params ?? {} });
   if (reply?.error) throw new RpcError(reply.error.code, reply.error.message, reply.error.data);
   return reply.result;
 }
 
-// Several calls in one round trip (a JSON-RPC batch). Results keep the
-// order of the calls; failed calls come back as RpcError values.
+/**
+ * Several calls in one round trip (a JSON-RPC batch). Results keep the
+ * order of the calls; failed calls come back as RpcError values.
+ */
 export async function rpcBatch<M extends MethodName>(
   method: M,
   paramsList: Methods[M]["params"][],
@@ -61,7 +80,9 @@ export async function rpcBatch<M extends MethodName>(
   });
 }
 
-// A like/dislike, sent through the gateway to MQTT like a device would.
+/**
+ * A like/dislike, sent through the gateway to MQTT like a device would.
+ */
 export async function react(bookId: number, kind: "like" | "dislike"): Promise<void> {
   const response = await fetch("/react", {
     method: "POST",

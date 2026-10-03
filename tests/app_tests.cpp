@@ -1,4 +1,6 @@
-// Checks on generated artifacts and data committed to the repository.
+/// @file
+/// Checks on generated artifacts and data committed to the repository.
+/// @ingroup tests
 
 #include "CatalogFakes.hpp"
 #include "TestHarness.hpp"
@@ -95,6 +97,7 @@ TEST(sample_catalog_json_passes_the_service_rules) {
     CHECK(count >= 300);  // "a few hundred books"
 }
 
+/// Runs every test case of this file (see TestHarness.hpp).
 int main() {
     log::LogConfig quiet;
     quiet.console = false;

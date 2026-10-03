@@ -1,14 +1,23 @@
-// Live line chart: likes and dislikes per bucket over a sliding window.
-// Two series -> legend plus direct end labels; crosshair + tooltip listing
-// both series at the hovered bucket.
+/**
+ * Live line chart: likes and dislikes per bucket over a sliding window.
+ * Two series -> legend plus direct end labels; crosshair + tooltip listing
+ * both series at the hovered bucket.
+ *
+ * @module
+ */
 
 import { useLayoutEffect, useRef, useState } from "react";
 
+/** One bucket of the chart. */
 export interface RatePoint {
-  at: number;  // bucket start, ms
+  /** Bucket start, epoch milliseconds. */
+  at: number;
+  /** Likes seen in the bucket. */
   likes: number;
+  /** Dislikes seen in the bucket. */
   dislikes: number;
-  known: boolean;  // false before the page started listening: not zero, unknown
+  /** False before the page started listening: not zero, unknown (drawn as a gap). */
+  known: boolean;
 }
 
 const HEIGHT = 220;
@@ -20,7 +29,14 @@ function niceMax(v: number): number {
   return Math.ceil(v / step) * step;
 }
 
-// The last bucket is still filling up; drawing it would show a fake drop.
+/**
+ * The chart, sized to its container. Props:
+ * - `points`: buckets, oldest first;
+ * - `bucketSeconds`: width of a bucket, for the tooltip.
+ *
+ * The last bucket is still filling up; drawing it would show a fake drop, so
+ * it is left out.
+ */
 export function RateChart({ points: all, bucketSeconds }: { points: RatePoint[]; bucketSeconds: number }) {
   const points = all.slice(0, -1);
   const ref = useRef<HTMLDivElement>(null);

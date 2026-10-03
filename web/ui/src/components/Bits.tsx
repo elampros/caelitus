@@ -1,8 +1,13 @@
-// Small presentational pieces shared by the pages.
+/**
+ * Small presentational pieces shared by the pages.
+ *
+ * @module
+ */
 
 import { coverColor, initials, number } from "../api/format";
 import { Star, ThumbDown, ThumbUp } from "./Icons";
 
+/** A placeholder cover: the title's initials on its category's color. */
 export function Cover({ title, categoryId, large = false }: { title: string; categoryId: number; large?: boolean }) {
   return (
     <div className={`cover ${large ? "large" : ""}`} style={{ background: coverColor(categoryId) }} aria-hidden="true">
@@ -11,6 +16,7 @@ export function Cover({ title, categoryId, large = false }: { title: string; cat
   );
 }
 
+/** Average rating with a star, and the number of reviews (`—` when none). */
 export function Rating({ average, count }: { average: number | null; count: number }) {
   return (
     <span className="stars" title={`${count} κριτικές`}>
@@ -21,6 +27,7 @@ export function Rating({ average, count }: { average: number | null; count: numb
   );
 }
 
+/** Likes and dislikes with thumb icons, in Greek number format. */
 export function Reactions({ likes, dislikes, size = 13 }: { likes: number; dislikes: number; size?: number }) {
   return (
     <>

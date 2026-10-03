@@ -1,3 +1,7 @@
+/// @file
+/// MQTT topic validation and wildcard matching (`+`, `#`).
+/// @ingroup mqtt
+
 #include "caelitus/mqtt/Topic.hpp"
 
 #include "caelitus/mqtt/MqttTypes.hpp"

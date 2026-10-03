@@ -1,4 +1,6 @@
-// Unit tests for core/DateTime and its database mapping.
+/// @file
+/// Unit tests for core/DateTime and its database mapping.
+/// @ingroup tests
 
 #include "TestHarness.hpp"
 
@@ -284,4 +286,5 @@ TEST(unknown_time_zone_is_rejected) {
     CHECK_EQ(TimeZone::named("UTC").name(), "UTC");
 }
 
+/// Runs every test case of this file (see TestHarness.hpp).
 int main() { return test::runAll(); }

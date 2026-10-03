@@ -1,3 +1,11 @@
+/**
+ * The UI's entry point: the layout (navigation, status indicators, theme
+ * switch) and the routes of the three pages: `/` books, `/live` dashboard,
+ * `/api` method reference. Rendered into `#root` of `index.html`.
+ *
+ * @module
+ */
+
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, NavLink, Navigate, Route, Routes } from "react-router-dom";

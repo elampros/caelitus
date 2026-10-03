@@ -16,10 +16,11 @@ FULL_PATH_NAMES        = YES
 INPUT                  = "@PROJECT_SOURCE_DIR@/docs/pages" \
                          "@PROJECT_SOURCE_DIR@/include" \
                          "@PROJECT_SOURCE_DIR@/src" \
+                         "@PROJECT_SOURCE_DIR@/tests" \
                          "@CMAKE_BINARY_DIR@/generated"
 FILE_PATTERNS          = *.hpp *.cpp *.md *.dox
 RECURSIVE              = YES
-EXCLUDE_SYMBOLS        = *::detail::* *::@* test
+EXCLUDE_SYMBOLS        = *::detail::* *::@* test_case_* test_reg_*
 IMAGE_PATH             = "@PROJECT_SOURCE_DIR@/docs/pages"
 USE_MDFILE_AS_MAINPAGE = "@PROJECT_SOURCE_DIR@/docs/pages/index.md"
 
@@ -62,7 +63,8 @@ WARN_LOGFILE           = "@DOCS_OUTPUT_DIR@/warnings.log"
 ENABLE_PREPROCESSING   = YES
 MACRO_EXPANSION        = YES
 EXPAND_ONLY_PREDEF     = YES
-PREDEFINED             = DOXYGEN
+PREDEFINED             = DOXYGEN \
+                         "TEST(name)=static void test_case_##name()"
 
 # ---- HTML (doxygen-awesome-css theme, https://jothepro.github.io/doxygen-awesome-css/) ----
 GENERATE_HTML          = YES

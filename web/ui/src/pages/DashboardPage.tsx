@@ -1,5 +1,9 @@
-// Live dashboard: system status, reaction rate, catalog event feed and the
-// most liked/disliked books for a chosen period.
+/**
+ * Live dashboard: system status, reaction rate, catalog event feed and the
+ * most liked/disliked books for a chosen period.
+ *
+ * @module
+ */
 
 import { useEffect, useRef, useState } from "react";
 import { rpc } from "../api/client";
@@ -20,8 +24,10 @@ type Order = NonNullable<Methods["reactions.top"]["params"]["order"]>;
 
 const bucketOf = (ms: number) => Math.floor(ms / (BUCKET_SECONDS * 1000)) * BUCKET_SECONDS * 1000;
 
-// `openedAt`: the bucket in which this page started listening. It and the
-// buckets before it are unknown (not zero): the first one was only partly observed.
+/**
+ * `openedAt`: the bucket in which this page started listening. It and the
+ * buckets before it are unknown (not zero): the first one was only partly observed.
+ */
 function emptyBuckets(now: number, openedAt: number): RatePoint[] {
   const start = bucketOf(now);
   return Array.from({ length: BUCKETS }, (_, i) => {
@@ -37,6 +43,7 @@ const eventLabels: Record<string, string> = {
   reviews: "νέα κριτική",
 };
 
+/** The `/live` page. */
 export function DashboardPage() {
   const live = useLiveState();
   const title = useTitle();
@@ -53,7 +60,9 @@ export function DashboardPage() {
   const [selected, setSelected] = useState<number | null>(null);
   const dirty = useRef(true);
 
-  // Slide the window every bucket.
+  /**
+   * Slide the window every bucket.
+   */
   useEffect(() => {
     const t = setInterval(() => {
       setPoints((prev) => {
@@ -86,7 +95,9 @@ export function DashboardPage() {
     rpc("books.search", { pageSize: 1 }).then((r) => setCatalogSize(r.total)).catch(() => {});
   }, []);
 
-  // Rankings: reload when the filter changes, and every 2 s while reactions arrive.
+  /**
+   * Rankings: reload when the filter changes, and every 2 s while reactions arrive.
+   */
   useEffect(() => {
     let current = true;
     const load = () => {

@@ -1,3 +1,8 @@
+/// @file
+/// Builds the OpenRPC document from the registered methods, and the
+/// `rpc.discover` method that returns it.
+/// @ingroup api
+
 #include "caelitus/api/OpenRpc.hpp"
 
 #include "caelitus/api/Schema.hpp"

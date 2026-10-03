@@ -1,4 +1,6 @@
-// Tests for LocalCache and BookCache.
+/// @file
+/// Tests for LocalCache and BookCache.
+/// @ingroup tests
 
 #include "TestHarness.hpp"
 
@@ -150,4 +152,5 @@ TEST(book_cache_estimates_its_memory) {
     CHECK(bytes < 2000u);
 }
 
+/// Runs every test case of this file (see TestHarness.hpp).
 int main() { return test::runAll(); }

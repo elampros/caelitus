@@ -1,10 +1,14 @@
-// Integration tests against a real MQTT broker. Skipped (exit 0) unless
-// CAELITUS_TEST_MQTT_HOST is set.
-//
-//   docker run -d --rm --name caelitus-test-mqtt -p 1884:1883
-//       eclipse-mosquitto mosquitto -c /mosquitto-no-auth.conf
-//   CAELITUS_TEST_MQTT_HOST=127.0.0.1 CAELITUS_TEST_MQTT_PORT=1884
-//       CAELITUS_TEST_MQTT_RESTART_CMD="docker restart caelitus-test-mqtt" ./mqtt_integration_tests
+/// @file
+/// Integration tests against a real MQTT broker. Skipped (exit 0) unless
+/// CAELITUS_TEST_MQTT_HOST is set.
+///
+/// @code{.sh}
+/// docker run -d --rm --name caelitus-test-mqtt -p 1884:1883
+///     eclipse-mosquitto mosquitto -c /mosquitto-no-auth.conf
+/// CAELITUS_TEST_MQTT_HOST=127.0.0.1 CAELITUS_TEST_MQTT_PORT=1884
+///     CAELITUS_TEST_MQTT_RESTART_CMD="docker restart caelitus-test-mqtt" ./mqtt_integration_tests
+/// @endcode
+/// @ingroup tests
 
 #include "TestHarness.hpp"
 
@@ -175,7 +179,7 @@ TEST(persistent_session_receives_messages_sent_while_offline) {
     connected(cfg)->stop();
 }
 
-std::string g_self;  // path of this executable, for the crash test
+std::string g_self;  ///< Path of this executable, to start it again as the crash child.
 
 TEST(will_reports_online_and_offline_on_clean_stop) {
     const std::string status = "caelitus-it/" + uniqueId() + "/status";
@@ -259,7 +263,8 @@ TEST(reconnects_and_resubscribes_after_broker_restart) {
     CHECK(inbox.waitFor(1));
 }
 
-// Child for will_is_sent_by_broker_when_process_dies: connect, then die.
+/// Child process of will_is_sent_by_broker_when_process_dies: connects with a
+/// last will, then exits without a clean disconnect, like a crash.
 int crashChild(const std::string& status) {
     MqttConfig cfg = config("crash");
     cfg.will = LastWill{status};
@@ -270,6 +275,8 @@ int crashChild(const std::string& status) {
     std::_Exit(0);                       // no stop(), no destructors: like a crash
 }
 
+/// Runs every test case of this file; with `--crash-child <topic>`, plays the
+/// crashing client of the last-will test instead.
 int main(int argc, char** argv) {
     g_self = argv[0];
     if (argc == 3 && std::string(argv[1]) == "--crash-child") return crashChild(argv[2]);

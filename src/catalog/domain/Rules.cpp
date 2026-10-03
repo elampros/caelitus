@@ -1,3 +1,8 @@
+/// @file
+/// The catalog's normalization and validation rules (names, slugs, ISBNs,
+/// languages, tags, ratings, paging).
+/// @ingroup catalog
+
 #include "caelitus/catalog/domain/Rules.hpp"
 
 #include "caelitus/core/DomainErrors.hpp"

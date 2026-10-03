@@ -1,3 +1,8 @@
+/// @file
+/// catalog::BookCache: full preload, per-book refresh after changes, periodic
+/// reload, and the memory estimate reported by the health check.
+/// @ingroup catalog
+
 #include "caelitus/catalog/service/BookCache.hpp"
 
 #include <chrono>

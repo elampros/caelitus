@@ -1,5 +1,7 @@
-// Tests for schedules, cron expressions and the scheduler. Scheduler tests
-// use short real intervals (tens of milliseconds) and generous margins.
+/// @file
+/// Tests for schedules, cron expressions and the scheduler. Scheduler tests
+/// use short real intervals (tens of milliseconds) and generous margins.
+/// @ingroup tests
 
 #include "LogCapture.hpp"
 #include "TestHarness.hpp"
@@ -274,6 +276,7 @@ TEST(jobs_can_be_added_after_start) {
     s.stop();
 }
 
+/// Runs every test case of this file (see TestHarness.hpp).
 int main() {
     caelitus::log::LogConfig config;
     config.level = "debug";

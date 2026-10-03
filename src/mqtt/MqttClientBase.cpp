@@ -1,3 +1,8 @@
+/// @file
+/// mqtt::MqttClientBase: subscriptions, message dispatch, the online/offline
+/// status messages, reconnect handling and statistics.
+/// @ingroup mqtt
+
 #include "caelitus/mqtt/MqttClientBase.hpp"
 
 #include "caelitus/mqtt/Topic.hpp"

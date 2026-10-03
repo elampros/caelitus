@@ -1,3 +1,8 @@
+/// @file
+/// app::Application: creates every component in dependency order, defines the
+/// scheduled jobs, starts them and stops them in reverse order.
+/// @ingroup app
+
 #include "app/Application.hpp"
 
 #include "app/HealthMonitor.hpp"

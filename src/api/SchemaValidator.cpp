@@ -1,3 +1,8 @@
+/// @file
+/// api::SchemaValidator: the JSON Schema subset the API uses (types, ranges,
+/// lengths, enums, formats, arrays, objects, `$ref`, `oneOf`).
+/// @ingroup api
+
 #include "caelitus/api/SchemaValidator.hpp"
 
 #include <set>

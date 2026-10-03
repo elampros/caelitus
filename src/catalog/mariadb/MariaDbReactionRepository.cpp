@@ -1,3 +1,8 @@
+/// @file
+/// Per-day like/dislike totals in SQL: batched upserts, counts per period,
+/// rankings, cleanup of old days.
+/// @ingroup catalog_mariadb
+
 #include "caelitus/catalog/mariadb/MariaDbReactionRepository.hpp"
 
 #include "catalog/mariadb/SqlFilter.hpp"

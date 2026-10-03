@@ -47,6 +47,9 @@ public:
     /// (see buildParams()). `--json` and `--no-color` may appear among the
     /// arguments and apply to this command only.
     ///
+    /// @param words  The command split into words (see splitWords()).
+    /// @param out    Results and help.
+    /// @param err    The server's error, when it answers with one.
     /// @param json   Compact JSON output unless the command says otherwise.
     /// @param color  Colored output unless the command says `--no-color`.
     /// @return kOk, or kCallFailed after printing the server's error to `err`.
@@ -101,6 +104,11 @@ public:
 /// Runs the commands read from `reader`, one per line. Blank lines and lines
 /// starting with `#` are skipped; `exit` or `quit` stops.
 ///
+/// @param session      Where the commands go.
+/// @param reader       Where they come from.
+/// @param out          Results and help.
+/// @param err          Errors.
+/// @param options      `json` and `color` apply to every command.
 /// @param interactive  true: errors are printed and the session goes on; the
 ///                     result is kOk. false (a script): each error is
 ///                     prefixed with `line N:`, and the result is the exit code

@@ -1,6 +1,8 @@
-// End to end: the real application (app::Application) in-process, a real
-// MariaDB, a real MQTT broker and JSON-RPC over a real TCP socket. Skipped (exit 0) unless
-// both CAELITUS_TEST_DB_HOST and CAELITUS_TEST_MQTT_HOST are set.
+/// @file
+/// End to end: the real application (app::Application) in-process, a real
+/// MariaDB, a real MQTT broker and JSON-RPC over a real TCP socket. Skipped (exit 0) unless
+/// both CAELITUS_TEST_DB_HOST and CAELITUS_TEST_MQTT_HOST are set.
+/// @ingroup tests
 
 #include "TestHarness.hpp"
 
@@ -293,6 +295,7 @@ TEST(scheduled_jobs_and_health_over_tcp) {
     watcher.stop();
 }
 
+/// Runs every test case of this file (see TestHarness.hpp).
 int main() {
     if (!std::getenv("CAELITUS_TEST_DB_HOST") || !std::getenv("CAELITUS_TEST_MQTT_HOST")) {
         std::cout << "CAELITUS_TEST_DB_HOST / CAELITUS_TEST_MQTT_HOST not set; skipping end-to-end tests\n";

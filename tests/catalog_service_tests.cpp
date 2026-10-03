@@ -1,6 +1,8 @@
-// Unit tests for the catalog rules and services, with in-memory repositories.
-// No database: these check business rules, validation, transactions
-// (rollback on failure) and events.
+/// @file
+/// Unit tests for the catalog rules and services, with in-memory repositories.
+/// No database: these check business rules, validation, transactions
+/// (rollback on failure) and events.
+/// @ingroup tests
 
 #include "CatalogFakes.hpp"
 #include "TestHarness.hpp"
@@ -561,4 +563,5 @@ TEST(concurrent_records_and_flushes_lose_nothing) {
     CHECK_EQ(all.dislikes, kThreads * kEach / 4);
 }
 
+/// Runs every test case of this file (see TestHarness.hpp).
 int main() { return test::runAll(); }

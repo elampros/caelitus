@@ -1,3 +1,8 @@
+/// @file
+/// db::SqlExecutor: runs statements on the current transaction's connection or
+/// a pooled one, with logging of slow queries.
+/// @ingroup db
+
 #include "caelitus/db/SqlExecutor.hpp"
 
 #include "caelitus/db/DbErrors.hpp"

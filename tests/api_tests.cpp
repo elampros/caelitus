@@ -1,5 +1,7 @@
-// Tests for the JSON-RPC layer and the catalog API (over in-memory fakes),
-// and for the MQTT reaction listener.
+/// @file
+/// Tests for the JSON-RPC layer and the catalog API (over in-memory fakes),
+/// and for the MQTT reaction listener.
+/// @ingroup tests
 
 #include "CatalogFakes.hpp"
 #include "TestHarness.hpp"
@@ -526,4 +528,5 @@ TEST(listener_turns_topics_into_reactions) {
     CHECK_EQ(stats["periods"]["today"]["dislikes"], 1);
 }
 
+/// Runs every test case of this file (see TestHarness.hpp).
 int main() { return test::runAll(); }

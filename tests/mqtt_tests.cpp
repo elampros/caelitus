@@ -1,5 +1,7 @@
-// Unit tests for the library-independent MQTT layer. A fake transport stands
-// in for libmosquitto, so connection events can be driven deterministically.
+/// @file
+/// Unit tests for the library-independent MQTT layer. A fake transport stands
+/// in for libmosquitto, so connection events can be driven deterministically.
+/// @ingroup tests
 
 #include "LogCapture.hpp"
 #include "TestHarness.hpp"
@@ -366,6 +368,7 @@ TEST(wait_until_connected) {
 
 // ---- Last will ---------------------------------------------------------------
 
+/// A test configuration with a last will on its status topic.
 MqttConfig willConfig() {
     MqttConfig cfg = testConfig();
     cfg.will = LastWill{"app/status"};
@@ -436,6 +439,7 @@ TEST(persistent_session_requires_client_id) {
     CHECK_THROWS_AS(FakeClient(cfg), MqttError);
 }
 
+/// Runs every test case of this file (see TestHarness.hpp).
 int main() {
     caelitus::log::LogConfig config;
     config.level = "trace";

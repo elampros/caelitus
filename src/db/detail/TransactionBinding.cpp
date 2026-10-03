@@ -1,3 +1,7 @@
+/// @file
+/// The per-thread record of the open transaction (private to the db module).
+/// @ingroup db
+
 #include "db/detail/TransactionBinding.hpp"
 
 #include <algorithm>

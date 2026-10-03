@@ -1,3 +1,7 @@
+/// @file
+/// Conversions between core date types and SQL date/time literals.
+/// @ingroup db
+
 #include "caelitus/db/detail/SqlDateTime.hpp"
 
 #include <cstdio>

@@ -1,19 +1,28 @@
-// One shared WebSocket to the gateway's /ws, reconnecting on its own.
-// Components subscribe with useLive(handler) and read connection state
-// with useLiveState().
+/**
+ * One shared WebSocket to the gateway's /ws, reconnecting on its own.
+ * Components subscribe with useLive(handler) and read connection state
+ * with useLiveState().
+ *
+ * @module
+ */
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 
+/** One message from the gateway's WebSocket (same shape as the gateway sends). */
 export type LiveMessage =
   | { type: "reaction"; bookId: number; kind: "like" | "dislike"; at: string }
   | { type: "event"; bookId: number; event: string; payload: string; at: string }
   | { type: "status"; server: string; at: string }
   | { type: "broker"; connected: boolean; at: string };
 
+/** What the status indicators show. */
 export interface LiveState {
+  /** The browser's WebSocket to the gateway. */
   socket: "connecting" | "open" | "closed";
+  /** The gateway's MQTT connection; null until the gateway has said. */
   broker: boolean | null;
-  server: string | null;  // "online" / "offline" from the server's last will
+  /** `"online"` / `"offline"` from the server's status topic; null until known. */
+  server: string | null;
 }
 
 const listeners = new Set<(m: LiveMessage) => void>();
@@ -52,6 +61,10 @@ function ensureConnected() {
   if (!socket) connect();
 }
 
+/**
+ * React hook: calls `handler` with every live message while the component is
+ * mounted. The latest `handler` is used, so it may close over fresh state.
+ */
 export function useLive(handler: (m: LiveMessage) => void): void {
   const ref = useRef(handler);
   ref.current = handler;
@@ -65,6 +78,7 @@ export function useLive(handler: (m: LiveMessage) => void): void {
   }, []);
 }
 
+/** React hook: the connection state, re-rendering when it changes. */
 export function useLiveState(): LiveState {
   ensureConnected();
   return useSyncExternalStore(

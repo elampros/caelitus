@@ -41,7 +41,7 @@ job never overlaps itself. scheduler::Schedule parses the schedule texts used
 in the configuration, and scheduler::CronExpression evaluates cron expressions
 in a local time zone, across summer-time changes. Knows nothing about the
 catalog: the application defines its jobs in app::Application, and the API
-exposes them as scheduler.* methods.
+exposes them as the `scheduler.list`, `scheduler.run`, ... methods.
 
 Library: `caelitus::scheduler`. Depends on: @ref core, @ref log.
 
@@ -123,7 +123,7 @@ Library: `caelitus::catalog_mariadb`. Depends on: @ref catalog, @ref db.
 - api::openRpcDocument() describes them as an OpenRPC document;
 - api::MqttReactionListener turns MQTT like/dislike messages into calls to
   catalog::ReactionService;
-- api::registerOperationsApi() exposes the scheduled jobs (scheduler.*) and the
+- api::registerOperationsApi() exposes the scheduled jobs (`scheduler.list`, `run`, `pause`, ...) and the
   health report (system.health).
 
 Library: `caelitus::api`. Depends on: @ref catalog, @ref json, @ref net, @ref mqtt, @ref scheduler.
@@ -154,6 +154,24 @@ component and defines the scheduled jobs; app::HealthMonitor, the "health" job.
 
 Library: `caelitus::app` (so the end-to-end tests can run the real server), plus
 the `caelitus` executable (`main.cpp`).
+
+@defgroup tests tests: the test suites
+@brief One executable per area, registered with CTest and labelled `unit` or
+`integration`.
+
+Unit tests need nothing but the build: fakes stand in for the database (a
+scripted connection, in-memory repositories), the MQTT library (a fake
+transport) and the network (real sockets on localhost). Integration tests run
+against a real MariaDB and MQTT broker and skip themselves (exit 0) unless their
+environment variables are set. They use the small harness in TestHarness.hpp
+(`TEST`, `CHECK`, `CHECK_EQ`, `CHECK_THROWS_AS`); each test's name says what it
+proves, e.g. `a_call_whose_reply_is_lost_is_not_sent_again`.
+
+```sh
+ctest --test-dir build/asan -L unit
+CAELITUS_TEST_DB_HOST=127.0.0.1 CAELITUS_TEST_DB_PORT=3307 CAELITUS_TEST_MQTT_HOST=127.0.0.1 \
+    ctest --test-dir build/asan
+```
 */
 
 /// @namespace caelitus

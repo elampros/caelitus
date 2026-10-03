@@ -1,3 +1,8 @@
+/// @file
+/// api::MqttReactionListener: parses like/dislike topics and passes them to
+/// catalog::ReactionService.
+/// @ingroup api
+
 #include "caelitus/api/MqttReactionListener.hpp"
 
 #include <charconv>

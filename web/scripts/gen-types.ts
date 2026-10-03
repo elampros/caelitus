@@ -1,8 +1,14 @@
-// Generates TypeScript types for the UI from the OpenRPC document that the
-// C++ server produces (docs/openrpc.json):
-//   - an interface per component schema (Book, Author, ...)
-//   - `Methods`: for every method, its params and result types
-// Run: npm run gen   (after `cmake --build <dir> --target openrpc`)
+/**
+ * Generates TypeScript types for the UI from the OpenRPC document that the
+ * C++ server produces (docs/openrpc.json):
+ * ```text
+ *   - an interface per component schema (Book, Author, ...)
+ *   - `Methods`: for every method, its params and result types
+ * ```
+ * Run: npm run gen   (after `cmake --build <dir> --target openrpc`)
+ *
+ * @module
+ */
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -54,8 +60,15 @@ function type(s: Schema, indent = ""): string {
 }
 
 const lines: string[] = [
-  `// Generated from docs/openrpc.json (${doc.info.title} ${doc.info.version}) by web/scripts/gen-types.ts.`,
-  "// Do not edit: run `npm run gen` instead.",
+  "/**",
+  ` * Types of the caelitus JSON-RPC API, generated from docs/openrpc.json (${doc.info.title} ${doc.info.version})`,
+  " * by web/scripts/gen-types.ts. Do not edit: run `npm run gen` instead.",
+  " *",
+  " * One type per schema of the API description, and {@link Methods}, which",
+  " * the typed `rpc()` client uses to check every call's parameters and result.",
+  " *",
+  " * @module",
+  " */",
   "",
 ];
 
@@ -63,7 +76,7 @@ for (const [name, schema] of Object.entries(doc.components.schemas as Record<str
   lines.push(comment(schema.description) + `export type ${name} = ${type(schema)};`, "");
 }
 
-lines.push("export interface Methods {");
+lines.push("/** Every method of the API: its parameters (by name) and its result. */", "export interface Methods {");
 for (const m of doc.methods as Schema[]) {
   const params = m.params.length
     ? `{\n${m.params
@@ -79,7 +92,7 @@ for (const m of doc.methods as Schema[]) {
     comment(m.summary, "  ") + `  ${quote(m.name)}: {\n    params: ${params};\n    result: ${type(m.result.schema, "    ")};\n  };`,
   );
 }
-lines.push("}", "", "export type MethodName = keyof Methods;", "");
+lines.push("}", "", "/** The name of any API method. */", "export type MethodName = keyof Methods;", "");
 
 writeFileSync(out, lines.join("\n"));
 console.log(`wrote ${out}: ${Object.keys(doc.components.schemas).length} schemas, ${doc.methods.length} methods`);

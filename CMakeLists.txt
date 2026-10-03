@@ -1,3 +1,13 @@
+# caelitus: book catalog server (JSON-RPC over TCP, MariaDB, MQTT) and its
+# command-line client. Build with the presets in CMakePresets.json:
+#
+#   cmake --preset asan && cmake --build --preset asan     # server, libraries, tests
+#   ctest --test-dir build/asan                            # tests
+#   cmake --build --preset asan --target docs              # Doxygen API docs
+#
+# Dependencies: cmake/Dependencies.cmake. Compiler options and the module helper:
+# cmake/BuildOptions.cmake. The libraries: src/CMakeLists.txt. See README.md.
+
 cmake_minimum_required(VERSION 3.20)
 project(caelitus
         VERSION 1.0.0

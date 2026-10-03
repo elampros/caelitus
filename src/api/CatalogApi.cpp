@@ -1,3 +1,8 @@
+/// @file
+/// The catalog's JSON-RPC methods: parameter schemas, result schemas and the
+/// handlers that call the catalog services (api::registerCatalogApi()).
+/// @ingroup api
+
 #include "caelitus/api/CatalogApi.hpp"
 
 #include "api/CatalogJson.hpp"
@@ -128,26 +133,32 @@ S::Properties bookSummaryProperties() {
             {"reactionsEnabled", S::describe(S::boolean(), "Whether likes/dislikes are accepted over MQTT")}};
 }
 
-Json page(const std::string& item) {
-    return S::object({{"items", S::array(S::ref(item))},
-                      {"total", S::describe(S::integer(0), "Matching items across all pages")},
-                      {"page", S::integer(1)},
-                      {"pageSize", S::integer(1, Page::kMaxSize)},
-                      {"pageCount", S::integer(0)}});
+Json page(const std::string& item, const std::string& description) {
+    return S::describe(S::object({{"items", S::array(S::ref(item))},
+                                  {"total", S::describe(S::integer(0), "Matching items across all pages")},
+                                  {"page", S::integer(1)},
+                                  {"pageSize", S::integer(1, Page::kMaxSize)},
+                                  {"pageCount", S::integer(0)}}),
+                       description);
 }
 
 void registerSchemas(JsonRpcHandler& rpc) {
-    rpc.addSchema("Category", S::object({{"id", S::id()},
+    rpc.addSchema("Category",
+                  S::describe(S::object({{"id", S::id()},
                                          {"name", S::string(1, rules::kCategoryNameMax)},
-                                         {"slug", S::describe(S::string(1, rules::kSlugMax), "a-z, 0-9 and '-'")}}));
-    rpc.addSchema("AuthorRef", S::object({{"id", S::id()}, {"name", S::string()}}));
-    rpc.addSchema("Author", S::object({{"id", S::id()},
-                                       {"name", S::string()},
-                                       {"bio", S::nullable(S::string())},
-                                       {"birthDate", S::nullable(S::date())},
-                                       {"version", S::describe(S::integer(1), "Pass it back to authors.update")},
-                                       {"createdAt", S::dateTime()},
-                                       {"updatedAt", S::dateTime()}}));
+                                         {"slug", S::describe(S::string(1, rules::kSlugMax), "a-z, 0-9 and '-'")}}),
+                              "A book category (flat: one per book)"));
+    rpc.addSchema("AuthorRef", S::describe(S::object({{"id", S::id()}, {"name", S::string()}}),
+                                           "An author as listed in a book, in cover order"));
+    rpc.addSchema("Author",
+                  S::describe(S::object({{"id", S::id()},
+                                         {"name", S::string()},
+                                         {"bio", S::nullable(S::string())},
+                                         {"birthDate", S::nullable(S::date())},
+                                         {"version", S::describe(S::integer(1), "Pass it back to authors.update")},
+                                         {"createdAt", S::dateTime()},
+                                         {"updatedAt", S::dateTime()}}),
+                              "An author with all their details"));
     rpc.addSchema("BookSummary", S::describe(S::object(bookSummaryProperties()), "A book as listed in search results"));
     auto book = bookSummaryProperties();
     book.insert(book.end(), {{"isbn", S::nullable(S::describe(S::string(13, 13), "ISBN-13"))},
@@ -157,33 +168,41 @@ void registerSchemas(JsonRpcHandler& rpc) {
                              {"createdAt", S::dateTime()},
                              {"updatedAt", S::dateTime()}});
     rpc.addSchema("Book", S::describe(S::object(book), "A book with all its details"));
-    rpc.addSchema("Review", S::object({{"id", S::id()},
-                                       {"bookId", S::id()},
-                                       {"reviewerName", S::string()},
-                                       {"rating", S::integer(1, 5)},
-                                       {"title", S::nullable(S::string())},
-                                       {"body", S::string()},
-                                       {"createdAt", S::dateTime()},
-                                       {"updatedAt", S::dateTime()}}));
-    rpc.addSchema("TagUsage", S::object({{"name", S::string()}, {"bookCount", S::integer(1)}}));
-    rpc.addSchema("ReactionCounts", S::object({{"likes", S::integer(0)},
-                                               {"dislikes", S::integer(0)},
-                                               {"score", S::describe(S::integer(), "likes - dislikes")}}));
+    rpc.addSchema("Review", S::describe(S::object({{"id", S::id()},
+                                                   {"bookId", S::id()},
+                                                   {"reviewerName", S::string()},
+                                                   {"rating", S::integer(1, 5)},
+                                                   {"title", S::nullable(S::string())},
+                                                   {"body", S::string()},
+                                                   {"createdAt", S::dateTime()},
+                                                   {"updatedAt", S::dateTime()}}),
+                                        "A reader's review of a book, with a rating of 1-5"));
+    rpc.addSchema("TagUsage", S::describe(S::object({{"name", S::string()}, {"bookCount", S::integer(1)}}),
+                                          "A tag and how many books carry it"));
+    rpc.addSchema("ReactionCounts", S::describe(S::object({{"likes", S::integer(0)},
+                                                           {"dislikes", S::integer(0)},
+                                                           {"score", S::describe(S::integer(), "likes - dislikes")}}),
+                                                "Likes and dislikes of one book in one period"));
     S::Properties periods;
     for (const auto& p : kPeriods) periods.emplace_back(p, S::ref("ReactionCounts"));
-    rpc.addSchema("ReactionStats", S::object({{"bookId", S::id()}, {"periods", S::object(periods)}}));
-    rpc.addSchema("RankedBook", S::object({{"bookId", S::id()},
-                                           {"title", S::string()},
-                                           {"likes", S::integer(0)},
-                                           {"dislikes", S::integer(0)},
-                                           {"score", S::integer()}}));
-    rpc.addSchema("TopBooks", S::object({{"period", S::enumOf(kPeriods)},
+    rpc.addSchema("ReactionStats",
+                  S::describe(S::object({{"bookId", S::id()}, {"periods", S::object(periods)}}),
+                              "A book's likes and dislikes for every period (days in the catalog time zone)"));
+    rpc.addSchema("RankedBook", S::describe(S::object({{"bookId", S::id()},
+                                                       {"title", S::string()},
+                                                       {"likes", S::integer(0)},
+                                                       {"dislikes", S::integer(0)},
+                                                       {"score", S::integer()}}),
+                                            "One book of a ranking"));
+    rpc.addSchema("TopBooks",
+                  S::describe(S::object({{"period", S::enumOf(kPeriods)},
                                          {"from", S::describe(S::nullable(S::date()), "First day; null for allTime")},
                                          {"to", S::describe(S::nullable(S::date()), "Last day; null for allTime")},
-                                         {"items", S::array(S::ref("RankedBook"))}}));
-    rpc.addSchema("BookPage", page("BookSummary"));
-    rpc.addSchema("AuthorPage", page("Author"));
-    rpc.addSchema("ReviewPage", page("Review"));
+                                         {"items", S::array(S::ref("RankedBook"))}}),
+                              "The most liked (or disliked) books of a period, best first"));
+    rpc.addSchema("BookPage", page("BookSummary", "One page of book search results"));
+    rpc.addSchema("AuthorPage", page("Author", "One page of authors"));
+    rpc.addSchema("ReviewPage", page("Review", "One page of a book's reviews, newest first"));
 }
 
 const Json kDeleted = S::describe(S::constant(true), "Always true");

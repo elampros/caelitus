@@ -1,3 +1,7 @@
+/// @file
+/// Logger set-up (console, file, extra sinks), named loggers and levels.
+/// @ingroup log
+
 #include "caelitus/log/Log.hpp"
 
 #include <spdlog/sinks/rotating_file_sink.h>

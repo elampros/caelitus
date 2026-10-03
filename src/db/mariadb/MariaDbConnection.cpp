@@ -1,3 +1,8 @@
+/// @file
+/// db::IConnection on MariaDB Connector/C++: prepared statements, parameter
+/// binding, result conversion and error translation.
+/// @ingroup db_mariadb
+
 #include "caelitus/db/mariadb/MariaDbConnection.hpp"
 
 #include "caelitus/db/DbErrors.hpp"

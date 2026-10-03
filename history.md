@@ -561,6 +561,37 @@ files, reconnecting and the no-resend rule. The prompt itself was driven through
 a pseudo-terminal: Tab, Greek input, Ctrl-C, Ctrl-D, the history file, and a
 server restart in the middle of a session.
 
+### 28. Closing phase A: every file documented, ready for GitHub
+
+The owner asked to finish the first phase: every file documented for the tool
+that reads it, and a presentation that a visitor finds on GitHub. The owner's
+choices: the presentation as Markdown in the repository, in English **and**
+Greek; the MIT licence; TypeDoc for the TypeScript code.
+
+- **C++.** The headers were already documented; now every `.cpp` file has a
+  `@file` comment saying what its implementation contains, and `tests/` joined
+  the Doxygen site as a module of its own. The test harness, the log capture
+  and the in-memory fakes are documented like library code, and each test
+  file says what it proves.
+- **A correction.** The assistant had reported "Doxygen: 0 warnings" for the
+  two CLI steps by reading the build output, but the Doxyfile writes warnings
+  to `build/asan/docs/warnings.log`. The log had 20 lines (undocumented CLI
+  parameters). They were fixed, the README now shows how to check the log, and
+  it is empty again, with the tests included.
+- **TypeScript.** Every one of the 21 files opens with a TSDoc `@module`
+  comment and all 66 exports are documented. `npm run docs` builds the site
+  with TypeDoc (`typedoc.json`, `tsconfig.docs.json`). The 16 API types in
+  `generated.ts` take their comments from the schemas' descriptions, which
+  were added in C++ (`S::describe`), so the OpenRPC document, the API page and
+  the CLI's help improved too.
+- **Everything else** (CMake, Docker, compose, shell, configuration, HTML)
+  starts with a comment saying what the file is. Pure data (JSON) cannot.
+- **The presentation:** `docs/PRESENTATION.md` and `PRESENTATION.el.md`, with
+  diagrams and screenshots of the running system (taken with Playwright from
+  the Docker stack and the like simulator), linked from the top of the README.
+- `LICENSE` (MIT). The build was also checked with clang, and has no warnings
+  there either.
+
 ## Decisions at a glance
 
 | Decision | Made by | Why |
@@ -588,6 +619,7 @@ server restart in the middle of a session.
 | The client reads the methods from `rpc.discover` at run time | Assistant, accepted | No client code per method; never out of step with the server |
 | replxx for the prompt | Assistant | UTF-8 (Greek), BSD licence, completion and hints |
 | Reconnect before a command, never resend one | Assistant | Survives idle timeouts and restarts without creating anything twice |
+| Presentation in English and Greek; MIT licence; TypeDoc | **Owner** | Publishing on GitHub |
 
 ## Bugs found and fixed
 
@@ -606,6 +638,7 @@ server restart in the middle of a session.
 | Live ranking said "no likes" when the server was unreachable | Screenshot with the server stopped | An "unavailable" state; the last list is kept |
 | The laptop froze during builds | The owner (twice) | `"jobs": 3` in the presets; no bare `-j` |
 | Pointers into a temporary JSON copy in the CLI | AddressSanitizer | Reference-returning `arrayAt()` |
+| "0 Doxygen warnings" reported while the log had 20 | Review of the docs set-up | Read `warnings.log`, not the build output; fixed every warning |
 
 ## Still open
 

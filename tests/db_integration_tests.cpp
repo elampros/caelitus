@@ -1,9 +1,13 @@
-// Integration tests against a real MariaDB server. Skipped (exit 0) unless
-// CAELITUS_TEST_DB_HOST is set. Uses its own scratch tables.
-//
-//   docker run -d --name caelitus-test-db -p 3307:3306
-//       -e MARIADB_ROOT_PASSWORD=test -e MARIADB_DATABASE=caelitus_test mariadb:11
-//   CAELITUS_TEST_DB_HOST=127.0.0.1 CAELITUS_TEST_DB_PORT=3307 ./db_integration_tests
+/// @file
+/// Integration tests against a real MariaDB server. Skipped (exit 0) unless
+/// CAELITUS_TEST_DB_HOST is set. Uses its own scratch tables.
+///
+/// @code{.sh}
+/// docker run -d --name caelitus-test-db -p 3307:3306
+///     -e MARIADB_ROOT_PASSWORD=test -e MARIADB_DATABASE=caelitus_test mariadb:11
+/// CAELITUS_TEST_DB_HOST=127.0.0.1 CAELITUS_TEST_DB_PORT=3307 ./db_integration_tests
+/// @endcode
+/// @ingroup tests
 
 #include "TestHarness.hpp"
 
@@ -121,8 +125,8 @@ TEST(uncommitted_rows_are_invisible_to_other_connections) {
     });
 }
 
-// Reads the row count twice inside one transaction while another thread
-// commits an insert in between; returns {first, second}.
+/// Reads the row count twice inside one transaction while another thread
+/// commits an insert in between; returns {first, second}.
 std::pair<int, int> countAroundConcurrentInsert(Db& db, const TransactionOptions& options) {
     return db.tx.inTransaction(options, [&] {
         int first = db.sql.queryScalar<int>("SELECT COUNT(*) FROM it_parent").value();
@@ -165,6 +169,7 @@ TEST(read_only_transaction_rejects_writes) {
 
 // ---- Dates -------------------------------------------------------------------
 
+/// (Re)creates the scratch table of the date and time round-trip tests.
 void createDatesTable(Db& db) {
     db.sql.execute("DROP TABLE IF EXISTS it_dates");
     db.sql.execute(
@@ -254,6 +259,7 @@ TEST(bad_password_is_non_transient_connection_error) {
     CHECK(caught);
 }
 
+/// Runs every test case of this file (see TestHarness.hpp).
 int main() {
     if (!std::getenv("CAELITUS_TEST_DB_HOST")) {
         std::cout << "CAELITUS_TEST_DB_HOST not set; skipping integration tests\n";

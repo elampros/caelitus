@@ -1,3 +1,8 @@
+/// @file
+/// catalog::ReviewService: review use cases; every change updates the book's
+/// rating count and average in the same transaction.
+/// @ingroup catalog
+
 #include "caelitus/catalog/service/ReviewService.hpp"
 
 #include "caelitus/catalog/domain/Rules.hpp"

@@ -1,3 +1,8 @@
+/// @file
+/// catalog::BookService: book use cases in transactions, cache refreshes and
+/// the catalog events published to MQTT.
+/// @ingroup catalog
+
 #include "caelitus/catalog/service/BookService.hpp"
 
 #include "caelitus/catalog/domain/Rules.hpp"

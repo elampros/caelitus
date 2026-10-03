@@ -1,3 +1,8 @@
+/// @file
+/// catalog::AuthorService: author use cases, with validation, optimistic
+/// locking and the "no delete while they have books" rule.
+/// @ingroup catalog
+
 #include "caelitus/catalog/service/AuthorService.hpp"
 
 #include "caelitus/catalog/domain/Rules.hpp"

@@ -1,3 +1,8 @@
+/// @file
+/// The catalog's schema migrations, in order. Applied migrations are never
+/// edited; changes are new migrations appended at the end.
+/// @ingroup catalog_mariadb
+
 #include "caelitus/catalog/mariadb/CatalogMigrations.hpp"
 
 namespace caelitus::catalog::mariadb {

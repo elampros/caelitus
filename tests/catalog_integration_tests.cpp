@@ -1,6 +1,8 @@
-// Catalog services over the real MariaDB repositories. Skipped (exit 0)
-// unless CAELITUS_TEST_DB_HOST is set; see db_integration_tests.cpp.
-// Drops and recreates the catalog tables.
+/// @file
+/// Catalog services over the real MariaDB repositories. Skipped (exit 0)
+/// unless CAELITUS_TEST_DB_HOST is set; see db_integration_tests.cpp.
+/// Drops and recreates the catalog tables.
+/// @ingroup tests
 
 #include "TestHarness.hpp"
 
@@ -571,6 +573,7 @@ TEST(concurrent_updates_of_one_review_stay_consistent) {
     CHECK_EQ(c.books.get(b.id).ratingCount, 1);
 }
 
+/// Runs every test case of this file (see TestHarness.hpp).
 int main() {
     if (!std::getenv("CAELITUS_TEST_DB_HOST")) {
         std::cout << "CAELITUS_TEST_DB_HOST not set; skipping catalog integration tests\n";
