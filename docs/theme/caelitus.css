@@ -1,0 +1,23 @@
+/* caelitus accent on top of doxygen-awesome-css; same blue as the web UI. */
+html {
+    --primary-color: #2f6fc4;
+    --primary-dark-color: #24579b;
+    --primary-light-color: #6aa3eb;
+    --content-maxwidth: 1100px;
+}
+
+html.dark-mode {
+    --primary-color: #3987e5;
+    --primary-dark-color: #6aa3eb;
+    --primary-light-color: #24579b;
+}
+
+/* Tables in the module pages (start/stop order, error codes) read better compact. */
+table.markdownTable td, table.markdownTable th {
+    padding: 6px 10px;
+}
+
+/* The theme always shows a horizontal scrollbar under graphs; only when needed. */
+.dotgraph {
+    overflow-x: auto;
+}

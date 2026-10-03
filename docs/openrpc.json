@@ -1,0 +1,2276 @@
+{
+  "components": {
+    "errors": {
+      "Conflict": {
+        "code": -32002,
+        "data": {
+          "code": "machine-readable reason; listed per method"
+        },
+        "message": "Conflict"
+      },
+      "InvalidParams": {
+        "code": -32602,
+        "data": {
+          "code": "\"validation_failed\" when a business rule rejected the value",
+          "field": "the offending parameter",
+          "reason": "what is wrong with it"
+        },
+        "message": "Invalid params"
+      },
+      "NotFound": {
+        "code": -32001,
+        "data": {
+          "code": "not_found",
+          "entity": "book, author, ...",
+          "id": "the id that was not found"
+        },
+        "message": "Not found"
+      },
+      "Unavailable": {
+        "code": -32003,
+        "message": "Service temporarily unavailable; retry later"
+      }
+    },
+    "schemas": {
+      "Author": {
+        "additionalProperties": false,
+        "properties": {
+          "bio": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "birthDate": {
+            "oneOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "description": "Pass it back to authors.update",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "bio",
+          "birthDate",
+          "version",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "AuthorPage": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Author"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "pageSize": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total": {
+            "description": "Matching items across all pages",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "pageCount"
+        ],
+        "type": "object"
+      },
+      "AuthorRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "Book": {
+        "additionalProperties": false,
+        "description": "A book with all its details",
+        "properties": {
+          "authors": {
+            "items": {
+              "$ref": "#/components/schemas/AuthorRef"
+            },
+            "type": "array"
+          },
+          "category": {
+            "$ref": "#/components/schemas/Category"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dislikes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "isbn": {
+            "oneOf": [
+              {
+                "description": "ISBN-13",
+                "maxLength": 13,
+                "minLength": 13,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "language": {
+            "maxLength": 2,
+            "minLength": 2,
+            "type": "string"
+          },
+          "likes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "pageCount": {
+            "oneOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "publishedOn": {
+            "format": "date",
+            "type": "string"
+          },
+          "ratingAverage": {
+            "oneOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ratingCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reactionsEnabled": {
+            "description": "Whether likes/dislikes are accepted over MQTT",
+            "type": "boolean"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "version": {
+            "description": "Pass it back to books.update",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "publishedOn",
+          "language",
+          "category",
+          "authors",
+          "tags",
+          "ratingCount",
+          "ratingAverage",
+          "likes",
+          "dislikes",
+          "reactionsEnabled",
+          "isbn",
+          "description",
+          "pageCount",
+          "version",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "BookPage": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BookSummary"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "pageSize": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total": {
+            "description": "Matching items across all pages",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "pageCount"
+        ],
+        "type": "object"
+      },
+      "BookSummary": {
+        "additionalProperties": false,
+        "description": "A book as listed in search results",
+        "properties": {
+          "authors": {
+            "items": {
+              "$ref": "#/components/schemas/AuthorRef"
+            },
+            "type": "array"
+          },
+          "category": {
+            "$ref": "#/components/schemas/Category"
+          },
+          "dislikes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "language": {
+            "maxLength": 2,
+            "minLength": 2,
+            "type": "string"
+          },
+          "likes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "publishedOn": {
+            "format": "date",
+            "type": "string"
+          },
+          "ratingAverage": {
+            "oneOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ratingCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reactionsEnabled": {
+            "description": "Whether likes/dislikes are accepted over MQTT",
+            "type": "boolean"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "publishedOn",
+          "language",
+          "category",
+          "authors",
+          "tags",
+          "ratingCount",
+          "ratingAverage",
+          "likes",
+          "dislikes",
+          "reactionsEnabled"
+        ],
+        "type": "object"
+      },
+      "Category": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "slug": {
+            "description": "a-z, 0-9 and '-'",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug"
+        ],
+        "type": "object"
+      },
+      "RankedBook": {
+        "additionalProperties": false,
+        "properties": {
+          "bookId": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "dislikes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "likes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "score": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bookId",
+          "title",
+          "likes",
+          "dislikes",
+          "score"
+        ],
+        "type": "object"
+      },
+      "ReactionCounts": {
+        "additionalProperties": false,
+        "properties": {
+          "dislikes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "likes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "score": {
+            "description": "likes - dislikes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "likes",
+          "dislikes",
+          "score"
+        ],
+        "type": "object"
+      },
+      "ReactionStats": {
+        "additionalProperties": false,
+        "properties": {
+          "bookId": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "periods": {
+            "additionalProperties": false,
+            "properties": {
+              "allTime": {
+                "$ref": "#/components/schemas/ReactionCounts"
+              },
+              "last30Days": {
+                "$ref": "#/components/schemas/ReactionCounts"
+              },
+              "last7Days": {
+                "$ref": "#/components/schemas/ReactionCounts"
+              },
+              "lastYear": {
+                "$ref": "#/components/schemas/ReactionCounts"
+              },
+              "today": {
+                "$ref": "#/components/schemas/ReactionCounts"
+              },
+              "yesterday": {
+                "$ref": "#/components/schemas/ReactionCounts"
+              }
+            },
+            "required": [
+              "today",
+              "yesterday",
+              "last7Days",
+              "last30Days",
+              "lastYear",
+              "allTime"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "bookId",
+          "periods"
+        ],
+        "type": "object"
+      },
+      "Review": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "bookId": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "rating": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "reviewerName": {
+            "type": "string"
+          },
+          "title": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "bookId",
+          "reviewerName",
+          "rating",
+          "title",
+          "body",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "ReviewPage": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Review"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "pageCount": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "pageSize": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "total": {
+            "description": "Matching items across all pages",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "pageSize",
+          "pageCount"
+        ],
+        "type": "object"
+      },
+      "TagUsage": {
+        "additionalProperties": false,
+        "properties": {
+          "bookCount": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "bookCount"
+        ],
+        "type": "object"
+      },
+      "TopBooks": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "description": "First day; null for allTime",
+            "oneOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RankedBook"
+            },
+            "type": "array"
+          },
+          "period": {
+            "enum": [
+              "today",
+              "yesterday",
+              "last7Days",
+              "last30Days",
+              "lastYear",
+              "allTime"
+            ],
+            "type": "string"
+          },
+          "to": {
+            "description": "Last day; null for allTime",
+            "oneOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "period",
+          "from",
+          "to",
+          "items"
+        ],
+        "type": "object"
+      }
+    },
+    "tags": {
+      "authors": {
+        "name": "authors"
+      },
+      "books": {
+        "name": "books"
+      },
+      "categories": {
+        "name": "categories"
+      },
+      "reactions": {
+        "name": "reactions"
+      },
+      "reviews": {
+        "name": "reviews"
+      },
+      "system": {
+        "name": "system"
+      }
+    }
+  },
+  "info": {
+    "description": "Books, authors, categories, tags, reviews, and likes/dislikes. Likes and dislikes arrive over MQTT (<prefix>/<bookId>/like or /dislike, default prefix catalog/in/books) for books with reactionsEnabled; this API reads the results. The catalog publishes events to catalog/books/<id>/created, updated, deleted and reviews.\n\nJSON-RPC 2.0 over TCP. Every message, request or reply, is a JSON document terminated by a NUL byte (\\0). Requests on one connection are answered in order; batches (arrays of up to 100 requests) and notifications (requests without an id) are supported. Parameters are always passed by name.\n\nProtocol errors: -32700 parse error, -32600 invalid request, -32601 method not found, -32603 internal error (details are logged on the server, never returned). Application errors: see components.errors; error.data.code is a stable machine-readable reason.\n\nConventions: ids are positive integers; dates are \"YYYY-MM-DD\"; timestamps are RFC 3339 in UTC; absent optional values are null; lists are paged with page (from 1) and pageSize (1-100).",
+    "title": "Caelitus Catalog API",
+    "version": "1.0.0"
+  },
+  "methods": [
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "authors.create",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Full name",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        {
+          "description": "Biography",
+          "name": "bio",
+          "required": false,
+          "schema": {
+            "maxLength": 20000,
+            "type": "string"
+          }
+        },
+        {
+          "description": "Not in the future",
+          "name": "birthDate",
+          "required": false,
+          "schema": {
+            "format": "date",
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "author",
+        "schema": {
+          "$ref": "#/components/schemas/Author"
+        }
+      },
+      "summary": "Creates an author.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/authors"
+        }
+      ]
+    },
+    {
+      "description": "Conflict error data.code values: author_has_books.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Conflict"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "authors.delete",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Author id",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "deleted",
+        "schema": {
+          "const": true,
+          "description": "Always true"
+        }
+      },
+      "summary": "Deletes an author who has no books.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/authors"
+        }
+      ]
+    },
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "authors.get",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Author id",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "author",
+        "schema": {
+          "$ref": "#/components/schemas/Author"
+        }
+      },
+      "summary": "One author.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/authors"
+        }
+      ]
+    },
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "authors.search",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Part of the name (case-insensitive)",
+          "name": "name",
+          "required": false,
+          "schema": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        {
+          "description": "Page number, from 1 (default 1)",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Items per page, 1-100 (default 20)",
+          "name": "pageSize",
+          "required": false,
+          "schema": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "authors",
+        "schema": {
+          "$ref": "#/components/schemas/AuthorPage"
+        }
+      },
+      "summary": "Authors by name, alphabetically.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/authors"
+        }
+      ]
+    },
+    {
+      "description": "Optimistic locking: pass the version you last read; if someone changed the author since, the call fails with version_conflict and nothing is changed.\n\nConflict error data.code values: version_conflict.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Conflict"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "authors.update",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Author id",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "The version you last read",
+          "name": "version",
+          "required": true,
+          "schema": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Full name",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        {
+          "description": "Biography; omitted or null clears it",
+          "name": "bio",
+          "required": false,
+          "schema": {
+            "maxLength": 20000,
+            "type": "string"
+          }
+        },
+        {
+          "description": "Omitted or null clears it",
+          "name": "birthDate",
+          "required": false,
+          "schema": {
+            "format": "date",
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "author",
+        "schema": {
+          "$ref": "#/components/schemas/Author"
+        }
+      },
+      "summary": "Replaces an author's fields.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/authors"
+        }
+      ]
+    },
+    {
+      "description": "Conflict error data.code values: isbn_taken, stale_reference.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/Conflict"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "books.create",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Title",
+          "name": "title",
+          "required": true,
+          "schema": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        {
+          "description": "ISBN-10 or ISBN-13; hyphens and spaces allowed; stored as ISBN-13",
+          "name": "isbn",
+          "required": false,
+          "schema": {
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        {
+          "description": "Free text",
+          "name": "description",
+          "required": false,
+          "schema": {
+            "maxLength": 20000,
+            "type": "string"
+          }
+        },
+        {
+          "description": "Publication date",
+          "name": "publishedOn",
+          "required": true,
+          "schema": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        {
+          "description": "ISO 639-1 language code, e.g. \"el\", \"en\"",
+          "name": "language",
+          "required": true,
+          "schema": {
+            "maxLength": 2,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        {
+          "description": "Number of pages",
+          "name": "pageCount",
+          "required": false,
+          "schema": {
+            "maximum": 100000,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "The book's category",
+          "name": "categoryId",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Authors in cover order",
+          "name": "authorIds",
+          "required": true,
+          "schema": {
+            "items": {
+              "description": "Positive integer id",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        {
+          "description": "Free-text tags; normalized (trimmed, lower case); unknown tags are created",
+          "name": "tags",
+          "required": false,
+          "schema": {
+            "items": {
+              "maxLength": 50,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          }
+        },
+        {
+          "description": "Accept likes/dislikes over MQTT (default false)",
+          "name": "reactionsEnabled",
+          "required": false,
+          "schema": {
+            "type": "boolean"
+          }
+        }
+      ],
+      "result": {
+        "name": "book",
+        "schema": {
+          "$ref": "#/components/schemas/Book"
+        }
+      },
+      "summary": "Creates a book.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/books"
+        }
+      ]
+    },
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "books.delete",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Book id",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "deleted",
+        "schema": {
+          "const": true,
+          "description": "Always true"
+        }
+      },
+      "summary": "Deletes a book with its reviews and reactions.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/books"
+        }
+      ]
+    },
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "books.get",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Book id",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "book",
+        "schema": {
+          "$ref": "#/components/schemas/Book"
+        }
+      },
+      "summary": "One book with all its details.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/books"
+        }
+      ]
+    },
+    {
+      "description": "All filters are optional and combine with AND.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "books.search",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Only this category",
+          "name": "categoryId",
+          "required": false,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Only books by this author",
+          "name": "authorId",
+          "required": false,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Tag names",
+          "name": "tags",
+          "required": false,
+          "schema": {
+            "items": {
+              "maxLength": 50,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          }
+        },
+        {
+          "description": "any (default): at least one tag; all: every tag",
+          "name": "tagMatch",
+          "required": false,
+          "schema": {
+            "enum": [
+              "any",
+              "all"
+            ],
+            "type": "string"
+          }
+        },
+        {
+          "description": "Published on or after",
+          "name": "publishedFrom",
+          "required": false,
+          "schema": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Published on or before",
+          "name": "publishedTo",
+          "required": false,
+          "schema": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        {
+          "description": "Part of the title (case-insensitive)",
+          "name": "title",
+          "required": false,
+          "schema": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        {
+          "description": "Minimum average rating; unrated books are excluded",
+          "name": "minRating",
+          "required": false,
+          "schema": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "type": "number"
+          }
+        },
+        {
+          "description": "ISO 639-1 code",
+          "name": "language",
+          "required": false,
+          "schema": {
+            "maxLength": 2,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        {
+          "description": "Order (default publishedDesc); ratingDesc puts unrated last",
+          "name": "sort",
+          "required": false,
+          "schema": {
+            "enum": [
+              "publishedDesc",
+              "publishedAsc",
+              "titleAsc",
+              "ratingDesc",
+              "createdDesc"
+            ],
+            "type": "string"
+          }
+        },
+        {
+          "description": "Page number, from 1 (default 1)",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Items per page, 1-100 (default 20)",
+          "name": "pageSize",
+          "required": false,
+          "schema": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "books",
+        "schema": {
+          "$ref": "#/components/schemas/BookPage"
+        }
+      },
+      "summary": "Searches books.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/books"
+        }
+      ]
+    },
+    {
+      "description": "Takes effect immediately. A switch, not an edit: the book's version does not change.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "books.setReactionsEnabled",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Book id",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "true to accept likes/dislikes",
+          "name": "enabled",
+          "required": true,
+          "schema": {
+            "type": "boolean"
+          }
+        }
+      ],
+      "result": {
+        "name": "book",
+        "schema": {
+          "$ref": "#/components/schemas/Book"
+        }
+      },
+      "summary": "Turns likes/dislikes over MQTT on or off for a book.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/books"
+        }
+      ]
+    },
+    {
+      "description": "Optimistic locking: pass the version you last read; if someone changed the book since, the call fails with version_conflict and nothing is changed. Does not change reactionsEnabled (see books.setReactionsEnabled).\n\nConflict error data.code values: version_conflict, isbn_taken, stale_reference.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Conflict"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "books.update",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Book id",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "The version you last read",
+          "name": "version",
+          "required": true,
+          "schema": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Title",
+          "name": "title",
+          "required": true,
+          "schema": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        {
+          "description": "ISBN-10 or ISBN-13; hyphens and spaces allowed; stored as ISBN-13",
+          "name": "isbn",
+          "required": false,
+          "schema": {
+            "maxLength": 20,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        {
+          "description": "Free text",
+          "name": "description",
+          "required": false,
+          "schema": {
+            "maxLength": 20000,
+            "type": "string"
+          }
+        },
+        {
+          "description": "Publication date",
+          "name": "publishedOn",
+          "required": true,
+          "schema": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        {
+          "description": "ISO 639-1 language code, e.g. \"el\", \"en\"",
+          "name": "language",
+          "required": true,
+          "schema": {
+            "maxLength": 2,
+            "minLength": 2,
+            "type": "string"
+          }
+        },
+        {
+          "description": "Number of pages",
+          "name": "pageCount",
+          "required": false,
+          "schema": {
+            "maximum": 100000,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "The book's category",
+          "name": "categoryId",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Authors in cover order",
+          "name": "authorIds",
+          "required": true,
+          "schema": {
+            "items": {
+              "description": "Positive integer id",
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        {
+          "description": "Free-text tags; normalized (trimmed, lower case); unknown tags are created",
+          "name": "tags",
+          "required": false,
+          "schema": {
+            "items": {
+              "maxLength": 50,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          }
+        }
+      ],
+      "result": {
+        "name": "book",
+        "schema": {
+          "$ref": "#/components/schemas/Book"
+        }
+      },
+      "summary": "Replaces a book's fields, authors and tags.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/books"
+        }
+      ]
+    },
+    {
+      "description": "Conflict error data.code values: name_taken, slug_taken.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/Conflict"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "categories.create",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Unique name",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        {
+          "description": "Unique URL-friendly id (a-z, 0-9, '-'); derived from the name if omitted, which needs a name with latin letters or digits",
+          "name": "slug",
+          "required": false,
+          "schema": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "category",
+        "schema": {
+          "$ref": "#/components/schemas/Category"
+        }
+      },
+      "summary": "Creates a category.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/categories"
+        }
+      ]
+    },
+    {
+      "description": "Conflict error data.code values: category_in_use.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Conflict"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "categories.delete",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Category id",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "deleted",
+        "schema": {
+          "const": true,
+          "description": "Always true"
+        }
+      },
+      "summary": "Deletes a category that has no books.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/categories"
+        }
+      ]
+    },
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "categories.get",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Category id",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "category",
+        "schema": {
+          "$ref": "#/components/schemas/Category"
+        }
+      },
+      "summary": "One category.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/categories"
+        }
+      ]
+    },
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "categories.list",
+      "paramStructure": "by-name",
+      "params": [],
+      "result": {
+        "name": "categories",
+        "schema": {
+          "items": {
+            "$ref": "#/components/schemas/Category"
+          },
+          "type": "array"
+        }
+      },
+      "summary": "All categories, by name.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/categories"
+        }
+      ]
+    },
+    {
+      "description": "Conflict error data.code values: name_taken, slug_taken.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Conflict"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "categories.update",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Category id",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "New name",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        {
+          "description": "New slug; kept if omitted",
+          "name": "slug",
+          "required": false,
+          "schema": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "category",
+        "schema": {
+          "$ref": "#/components/schemas/Category"
+        }
+      },
+      "summary": "Renames a category.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/categories"
+        }
+      ]
+    },
+    {
+      "description": "Periods are rolling windows ending today, in the catalog's time zone (default Europe/Athens). Counts lag by up to one flush interval (default 1 s).",
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "reactions.get",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Book id",
+          "name": "bookId",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "stats",
+        "schema": {
+          "$ref": "#/components/schemas/ReactionStats"
+        }
+      },
+      "summary": "A book's likes and dislikes for every period.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/reactions"
+        }
+      ]
+    },
+    {
+      "description": "Ranked by likes minus dislikes. mostLiked lists books with at least one like in the period; mostDisliked, books with at least one dislike.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "reactions.top",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Time window",
+          "name": "period",
+          "required": true,
+          "schema": {
+            "enum": [
+              "today",
+              "yesterday",
+              "last7Days",
+              "last30Days",
+              "lastYear",
+              "allTime"
+            ],
+            "type": "string"
+          }
+        },
+        {
+          "description": "mostLiked (default) or mostDisliked",
+          "name": "order",
+          "required": false,
+          "schema": {
+            "enum": [
+              "mostLiked",
+              "mostDisliked"
+            ],
+            "type": "string"
+          }
+        },
+        {
+          "description": "How many books, 1-100 (default 10)",
+          "name": "limit",
+          "required": false,
+          "schema": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "top",
+        "schema": {
+          "$ref": "#/components/schemas/TopBooks"
+        }
+      },
+      "summary": "Most liked (or disliked) books in a period.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/reactions"
+        }
+      ]
+    },
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "reviews.create",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Book id",
+          "name": "bookId",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Who wrote the review",
+          "name": "reviewerName",
+          "required": true,
+          "schema": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        {
+          "description": "1 (worst) to 5 (best)",
+          "name": "rating",
+          "required": true,
+          "schema": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Optional headline",
+          "name": "title",
+          "required": false,
+          "schema": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        {
+          "description": "The review text",
+          "name": "body",
+          "required": true,
+          "schema": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "review",
+        "schema": {
+          "$ref": "#/components/schemas/Review"
+        }
+      },
+      "summary": "Adds a review and updates the book's rating.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/reviews"
+        }
+      ]
+    },
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "reviews.delete",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Review id",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "deleted",
+        "schema": {
+          "const": true,
+          "description": "Always true"
+        }
+      },
+      "summary": "Deletes a review and updates the book's rating.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/reviews"
+        }
+      ]
+    },
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "reviews.get",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Review id",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "review",
+        "schema": {
+          "$ref": "#/components/schemas/Review"
+        }
+      },
+      "summary": "One review.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/reviews"
+        }
+      ]
+    },
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "reviews.list",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Book id",
+          "name": "bookId",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Page number, from 1 (default 1)",
+          "name": "page",
+          "required": false,
+          "schema": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Items per page, 1-100 (default 20)",
+          "name": "pageSize",
+          "required": false,
+          "schema": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          }
+        }
+      ],
+      "result": {
+        "name": "reviews",
+        "schema": {
+          "$ref": "#/components/schemas/ReviewPage"
+        }
+      },
+      "summary": "A book's reviews, newest first.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/reviews"
+        }
+      ]
+    },
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "reviews.update",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Review id",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "description": "Positive integer id",
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Who wrote the review",
+          "name": "reviewerName",
+          "required": true,
+          "schema": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        {
+          "description": "1 (worst) to 5 (best)",
+          "name": "rating",
+          "required": true,
+          "schema": {
+            "maximum": 5,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        {
+          "description": "Optional headline",
+          "name": "title",
+          "required": false,
+          "schema": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        {
+          "description": "The review text",
+          "name": "body",
+          "required": true,
+          "schema": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "review",
+        "schema": {
+          "$ref": "#/components/schemas/Review"
+        }
+      },
+      "summary": "Replaces a review's fields and updates the book's rating.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/reviews"
+        }
+      ]
+    },
+    {
+      "description": "The full machine-readable API description (https://spec.open-rpc.org): methods, parameters, results, errors and schemas. Paste it into https://playground.open-rpc.org to browse it.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "rpc.discover",
+      "paramStructure": "by-name",
+      "params": [],
+      "result": {
+        "name": "openrpcDocument",
+        "schema": {
+          "description": "An OpenRPC 1.3 document",
+          "type": "object"
+        }
+      },
+      "summary": "Returns this API's OpenRPC description.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/system"
+        }
+      ]
+    },
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "system.ping",
+      "paramStructure": "by-name",
+      "params": [],
+      "result": {
+        "name": "pong",
+        "schema": {
+          "additionalProperties": false,
+          "properties": {
+            "time": {
+              "description": "Server time",
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          "required": [
+            "time"
+          ],
+          "type": "object"
+        }
+      },
+      "summary": "Liveness check.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/system"
+        }
+      ]
+    },
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "tags.list",
+      "paramStructure": "by-name",
+      "params": [],
+      "result": {
+        "name": "tags",
+        "schema": {
+          "items": {
+            "$ref": "#/components/schemas/TagUsage"
+          },
+          "type": "array"
+        }
+      },
+      "summary": "Tags in use, by name, with how many books carry each.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/books"
+        }
+      ]
+    }
+  ],
+  "openrpc": "1.3.2",
+  "servers": [
+    {
+      "name": "default",
+      "summary": "The caelitus server (see server.port in config.json)",
+      "url": "tcp://{host}:{port}",
+      "variables": {
+        "host": {
+          "default": "localhost"
+        },
+        "port": {
+          "default": "9000"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+# The whole stack in containers: MariaDB (with the sample catalog), an MQTT
+# broker, the caelitus server and the web UI.
+#
+#   docker compose -f docker/compose.yml up -d --build
+#   open http://localhost:8080
+#
+# Host ports (chosen not to clash with a local MariaDB on 3306 or broker on 1883):
+#   8080  web UI and gateway
+#   9000  caelitus JSON-RPC over TCP
+#   3316  MariaDB          (user caelitus / caelitus-dev)
+#   1884  MQTT broker      (e.g. for the like simulator)
+#
+# The database is created and filled with db/sample/catalog.json's books the
+# first time only; `docker compose -f docker/compose.yml down -v` deletes it.
+name: caelitus
+
+services:
+  mariadb:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: caelitus
+      MARIADB_USER: caelitus
+      MARIADB_PASSWORD: caelitus-dev
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+    volumes:
+      - data:/var/lib/mysql
+      - ../db/sample/catalog.sql:/docker-entrypoint-initdb.d/catalog.sql:ro
+    ports:
+      - "127.0.0.1:3316:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      retries: 30
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    ports:
+      - "127.0.0.1:1884:1883"
+
+  caelitus:
+    build:
+      context: ..
+      dockerfile: docker/server.Dockerfile
+    image: caelitus-server
+    environment:
+      CAELITUS_DB_PASSWORD: caelitus-dev
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    ports:
+      - "127.0.0.1:9000:9000"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/web.Dockerfile
+    image: caelitus-web
+    environment:
+      CAELITUS_RPC_HOST: caelitus
+      CAELITUS_RPC_PORT: "9000"
+      MQTT_URL: mqtt://mosquitto:1883
+    depends_on:
+      - caelitus
+    ports:
+      - "127.0.0.1:8080:8080"
+    restart: unless-stopped
+
+  # Random likes for the live dashboard; started only on request:
+  #   docker compose -f docker/compose.yml --profile simulate up -d simulator
+  simulator:
+    image: caelitus-web
+    profiles: ["simulate"]
+    command: ["npm", "run", "simulate"]
+    environment:
+      MQTT_URL: mqtt://mosquitto:1883
+      CAELITUS_RPC_HOST: caelitus
+      RATE: "20"
+    depends_on:
+      - web
+
+volumes:
+  data:

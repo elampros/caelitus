@@ -1,0 +1,8 @@
+# Keep the Docker build context small: sources only.
+build/
+cmake-build-*/
+.idea/
+web/node_modules/
+web/*/node_modules/
+web/ui/dist/
+**/*.log

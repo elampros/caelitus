@@ -1,0 +1,161 @@
+/**
+@defgroup log log: logging
+@brief Named spdlog loggers sharing one configuration, and log throttling.
+
+Every component fetches its own logger once (`log::get("db.pool")`) and keeps
+it. Logger names are dotted by module, so levels can be tuned per area in the
+configuration (`"levels": {"db.sql": "trace"}`). LogThrottle keeps a failure
+loop from flooding the log.
+
+Library: `caelitus::log`. Depends on: spdlog.
+
+@defgroup core core: dates, time zones, errors, periodic tasks
+@brief Small building blocks used by every other module.
+
+- Timestamp, Date and the ISO 8601 / RFC 3339 conversions;
+- TimeZone, which knows the EU daylight saving rule;
+- the domain error hierarchy (DomainError and its subclasses) that services
+  throw and the API layer maps to JSON-RPC errors;
+- PeriodicTask, a thread that runs a function on a schedule.
+
+Library: `caelitus::core`. Depends on: @ref log.
+
+@defgroup json json: JSON conversions
+@brief nlohmann::json conversions for the core types (Timestamp, Date, std::optional).
+
+Header-only. Library: `caelitus::json`. Depends on: @ref core, nlohmann/json.
+
+@defgroup cache cache: in-memory cache
+@brief A thread-safe, read-optimized key/value cache.
+
+cache::LocalCache serves lookups in parallel under a shared lock and lets
+writers in ahead of new readers (cache::WriterPreferringMutex). It has no
+expiry or size bound: its owner decides what is in it (see catalog::BookCache).
+
+Header-only. Library: `caelitus::cache`.
+
+@defgroup db db: database access
+@brief Database access that knows no particular database.
+
+The layers, from the services down:
+
+| Layer                 | Type                                   | Role |
+|-----------------------|----------------------------------------|------|
+| transactions          | db::ITransactionManager, db::TransactionManager | Groups statements of one use case; retries deadlocks |
+| statements            | db::SqlExecutor                        | Runs one statement on the current transaction's connection, or on a pooled one |
+| connections           | db::ConnectionPool                     | Reuses connections, validates them, limits their number |
+| driver                | db::IConnection, db::IConnectionFactory | The only thing that knows the database product (see @ref db_mariadb) |
+
+Errors are translated into the db::DatabaseError hierarchy, so callers never
+see driver exceptions. db::MigrationRunner applies versioned schema changes.
+
+Library: `caelitus::db`. Depends on: @ref core, @ref log.
+
+@defgroup db_mariadb db_mariadb: MariaDB driver
+@brief db::IConnection implemented on MariaDB Connector/C++.
+
+The only code that includes the connector's headers; it also maps MariaDB
+error numbers to the db::DatabaseError hierarchy.
+
+Library: `caelitus::db_mariadb`. Depends on: @ref db, MariaDB Connector/C++.
+
+@defgroup mqtt mqtt: MQTT client
+@brief Library-independent MQTT client: interfaces, subscriptions, reconnects, last will.
+
+Services only see mqtt::IMqttPublisher. mqtt::MqttClientBase implements
+everything that does not depend on the client library (subscription registry,
+handler dispatch on a dedicated thread, online/offline status, statistics,
+throttled logging); see @ref mqtt_mosquitto for the transport.
+
+Library: `caelitus::mqtt`. Depends on: @ref log.
+
+@defgroup mqtt_mosquitto mqtt_mosquitto: libmosquitto transport
+@brief mqtt::MosquittoClient, the MQTT client on libmosquitto.
+
+Library: `caelitus::mqtt_mosquitto`. Depends on: @ref mqtt, libmosquitto.
+
+@defgroup net net: TCP server
+@brief Asynchronous TCP server for `\0`-terminated request/response messages (Asio).
+
+net::TcpServer accepts connections, splits the byte stream at `\0` bytes and
+hands each message to a net::IMessageHandler on a worker pool, answering in
+order per connection. It knows nothing about JSON-RPC.
+
+Library: `caelitus::net`. Depends on: @ref log, Asio.
+
+@defgroup catalog catalog: book catalog domain and services
+@brief The business logic: books, authors, categories, reviews, likes.
+
+- **domain**: plain data (Book, Author, ...), typed ids, validation rules and
+  the repository interfaces the services need;
+- **services**: one class per aggregate (BookService, ReactionService, ...).
+  They validate input, enforce the rules, group work in transactions and
+  publish events; they know neither the database nor the MQTT library.
+
+Library: `caelitus::catalog`. Depends on: @ref core, @ref cache, and the
+interfaces of @ref db and @ref mqtt.
+
+@defgroup catalog_mariadb catalog_mariadb: catalog repositories on MariaDB
+@brief The catalog's repository interfaces implemented in SQL, and its schema migrations.
+
+Library: `caelitus::catalog_mariadb`. Depends on: @ref catalog, @ref db.
+
+@defgroup api api: JSON-RPC API
+@brief JSON-RPC 2.0 protocol handling, the catalog methods, OpenRPC and the MQTT like listener.
+
+- api::JsonRpcHandler parses requests, validates parameters against each
+  method's JSON Schema, runs the method and maps exceptions to error codes;
+- api::registerCatalogApi() declares every catalog method;
+- api::openRpcDocument() describes them as an OpenRPC document;
+- api::MqttReactionListener turns MQTT like/dislike messages into calls to
+  catalog::ReactionService.
+
+Library: `caelitus::api`. Depends on: @ref catalog, @ref json, @ref net, @ref mqtt.
+
+@defgroup config config: configuration
+@brief Loads and validates `config.json`, with `${ENV_VAR}` substitution.
+
+Library: `caelitus::config`. Depends on: @ref db, @ref mqtt, @ref net, @ref log, @ref json.
+
+@defgroup app app: the server executable
+@brief `main()` and app::Application, which creates, wires, starts and stops every component.
+*/
+
+/// @namespace caelitus
+/// Everything in this project.
+
+/// @namespace caelitus::log
+/// Logging; see @ref log.
+
+/// @namespace caelitus::db
+/// Database access; see @ref db.
+
+/// @namespace caelitus::db::mariadb
+/// The MariaDB driver; see @ref db_mariadb.
+
+/// @namespace caelitus::mqtt
+/// MQTT client; see @ref mqtt.
+
+/// @namespace caelitus::net
+/// TCP server; see @ref net.
+
+/// @namespace caelitus::catalog
+/// Book catalog domain and services; see @ref catalog.
+
+/// @namespace caelitus::catalog::rules
+/// Validation and normalization rules for catalog input.
+
+/// @namespace caelitus::catalog::mariadb
+/// Catalog repositories on MariaDB; see @ref catalog_mariadb.
+
+/// @namespace caelitus::api
+/// JSON-RPC API; see @ref api.
+
+/// @namespace caelitus::app
+/// The server executable; see @ref app.
+
+/// @namespace caelitus::cache
+/// In-memory cache; see @ref cache.
+
+/// @namespace caelitus::api::schema
+/// Builders for the JSON Schemas that describe API parameters and results.

@@ -1,0 +1,16 @@
+# Build outputs
+build/
+cmake-build-*/
+
+# IDE (CLion keeps per-user state here)
+.idea/
+
+# Web
+web/node_modules/
+web/*/node_modules/
+web/ui/dist/
+
+# Logs and editor leftovers
+*.log
+*.swp
+.DS_Store

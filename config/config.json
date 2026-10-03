@@ -1,0 +1,70 @@
+{
+  // Caelitus configuration. Missing keys use defaults; unknown keys are errors.
+  // "${NAME}" in a string is replaced by environment variable NAME.
+
+  "mqtt": {
+    "server": "127.0.0.1",
+    "port": 1883,
+    "clientId": "caelitus",
+    "keepAliveSec": 30,
+    "qos": 0,
+    "retain": false,
+    "cleanSession": true,
+    "reconnectMinDelaySec": 1,
+    "reconnectMaxDelaySec": 30,
+    "will": {
+      "topic": "caelitus/status",
+      "payload": "offline",
+      "onlinePayload": "online",
+      "qos": 1,
+      "retain": true
+    }
+  },
+
+  "db": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "caelitus",
+    "password": "${CAELITUS_DB_PASSWORD}",
+    "database": "caelitus",
+    "connectTimeoutMs": 5000,
+    "socketTimeoutMs": 30000,
+    "slowQueryMs": 500,
+    "pool": {
+      "maxSize": 8,
+      "acquireTimeoutMs": 5000
+    },
+    "transaction": {
+      "maxAttempts": 3,
+      "slowTransactionMs": 2000
+    }
+  },
+
+  "server": {
+    "port": 9000,
+    "bindAddress": "0.0.0.0",
+    "ioThreads": 2,
+    "workerThreads": 8,
+    "maxConnections": 10000,
+    "maxMessageBytes": 1048576,
+    "idleTimeoutSec": 300,
+    "slowRequestMs": 500,
+    "log": "info"
+  },
+
+  "catalog": {
+    "timeZone": "Europe/Athens",
+    "bookCacheReloadSec": 300,
+    "reactions": {
+      "topicPrefix": "catalog/in/books",
+      "flushIntervalMs": 1000
+    }
+  },
+
+  "log": {
+    "level": "info",
+    "levels": { "db.sql": "info" },
+    "console": true,
+    "file": ""
+  }
+}

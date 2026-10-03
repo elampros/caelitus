@@ -1,0 +1,98 @@
+# Doxygen configuration of the caelitus C++ API documentation.
+# Generated into the build tree by docs/CMakeLists.txt; build with:
+#   cmake --build <build-dir> --target docs
+# Only settings that differ from Doxygen's defaults are listed.
+
+# ---- project ---------------------------------------------------------------------
+PROJECT_NAME           = "caelitus"
+PROJECT_NUMBER         = "@PROJECT_VERSION@"
+PROJECT_BRIEF          = "@PROJECT_DESCRIPTION@"
+OUTPUT_DIRECTORY       = "@DOCS_OUTPUT_DIR@"
+STRIP_FROM_PATH        = "@PROJECT_SOURCE_DIR@"
+STRIP_FROM_INC_PATH    = "@PROJECT_SOURCE_DIR@/include" "@PROJECT_SOURCE_DIR@/src"
+FULL_PATH_NAMES        = YES
+
+# ---- input -----------------------------------------------------------------------
+INPUT                  = "@PROJECT_SOURCE_DIR@/docs/pages" \
+                         "@PROJECT_SOURCE_DIR@/include" \
+                         "@PROJECT_SOURCE_DIR@/src" \
+                         "@CMAKE_BINARY_DIR@/generated"
+FILE_PATTERNS          = *.hpp *.cpp *.md *.dox
+RECURSIVE              = YES
+EXCLUDE_SYMBOLS        = *::detail::* *::@* test
+IMAGE_PATH             = "@PROJECT_SOURCE_DIR@/docs/pages"
+USE_MDFILE_AS_MAINPAGE = "@PROJECT_SOURCE_DIR@/docs/pages/index.md"
+
+# ---- what to extract -------------------------------------------------------------
+EXTRACT_ALL            = NO
+EXTRACT_STATIC         = YES
+EXTRACT_ANON_NSPACES   = NO
+EXTRACT_LOCAL_CLASSES  = NO
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_FRIEND_COMPOUNDS  = YES
+INTERNAL_DOCS          = NO
+SHOW_INCLUDE_FILES     = YES
+SORT_MEMBER_DOCS       = NO
+SOURCE_BROWSER         = YES
+STRIP_CODE_COMMENTS    = NO
+REFERENCED_BY_RELATION = NO
+REFERENCES_RELATION    = NO
+
+# ---- comment style ---------------------------------------------------------------
+# The first sentence of a /// comment is its brief description.
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+BUILTIN_STL_SUPPORT    = YES
+INLINE_INHERITED_MEMB  = NO
+DISTRIBUTE_GROUP_DOC   = YES
+TOC_INCLUDE_HEADINGS   = 3
+
+# ---- warnings --------------------------------------------------------------------
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_IF_INCOMPLETE_DOC = YES
+WARN_NO_PARAMDOC       = NO
+WARN_LOGFILE           = "@DOCS_OUTPUT_DIR@/warnings.log"
+
+# ---- preprocessor ----------------------------------------------------------------
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = DOXYGEN
+
+# ---- HTML (doxygen-awesome-css theme, https://jothepro.github.io/doxygen-awesome-css/) ----
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HTML_OUTPUT            = html
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = NO
+FULL_SIDEBAR           = NO
+HTML_COLORSTYLE        = LIGHT
+HTML_DYNAMIC_SECTIONS  = YES
+HTML_HEADER            = "@PROJECT_SOURCE_DIR@/docs/theme/header.html"
+HTML_EXTRA_STYLESHEET  = "@DOCS_THEME_DIR@/doxygen-awesome.css" \
+                         "@DOCS_THEME_DIR@/doxygen-awesome-sidebar-only.css" \
+                         "@DOCS_THEME_DIR@/doxygen-awesome-sidebar-only-darkmode-toggle.css" \
+                         "@PROJECT_SOURCE_DIR@/docs/theme/caelitus.css"
+HTML_EXTRA_FILES       = "@DOCS_THEME_DIR@/doxygen-awesome-darkmode-toggle.js" \
+                         "@DOCS_THEME_DIR@/doxygen-awesome-fragment-copy-button.js" \
+                         "@DOCS_THEME_DIR@/doxygen-awesome-paragraph-link.js"
+SEARCHENGINE           = YES
+SERVER_BASED_SEARCH    = NO
+
+# ---- diagrams (Graphviz) ---------------------------------------------------------
+HAVE_DOT               = @DOCS_HAVE_DOT@
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = NO
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = NO
+INCLUDE_GRAPH          = NO
+INCLUDED_BY_GRAPH      = NO
+DIRECTORY_GRAPH        = NO
+GROUP_GRAPHS           = YES
+UML_LOOK               = NO
+DOT_GRAPH_MAX_NODES    = 60

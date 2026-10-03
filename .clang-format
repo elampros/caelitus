@@ -1,0 +1,35 @@
+# Formatting of the C++ code: clang-format -i <files>, or "Reformat Code" in CLion
+# (Settings > Editor > Code Style > C/C++ > Enable ClangFormat).
+BasedOnStyle: Google
+Language: Cpp
+Standard: c++17
+ColumnLimit: 120
+IndentWidth: 4
+AccessModifierOffset: -4
+DerivePointerAlignment: false
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortLoopsOnASingleLine: true
+AllowShortBlocksOnASingleLine: Never
+AllowShortLambdasOnASingleLine: All
+BinPackArguments: true
+BinPackParameters: true
+AlignAfterOpenBracket: Align
+AlignTrailingComments: true
+SpacesBeforeTrailingComments: 2
+FixNamespaceComments: true
+ShortNamespaceLines: 0
+SpacesInLineCommentPrefix: { Minimum: 1, Maximum: -1 }
+ReflowComments: false
+SortIncludes: CaseSensitive
+IncludeBlocks: Preserve
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+BreakConstructorInitializers: BeforeColon
+ConstructorInitializerIndentWidth: 4
+ContinuationIndentWidth: 4
+PackConstructorInitializers: CurrentLine
+PenaltyBreakBeforeFirstCallParameter: 200
+PenaltyReturnTypeOnItsOwnLine: 200
+AllowShortCaseLabelsOnASingleLine: true

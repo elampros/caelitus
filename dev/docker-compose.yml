@@ -1,0 +1,26 @@
+# Local development database for caelitus.
+#   docker compose -f dev/docker-compose.yml up -d
+# Matches config/config.json (127.0.0.1:3306, database/user "caelitus");
+# run the app with CAELITUS_DB_PASSWORD=caelitus-dev.
+# The MQTT broker is not included: use your own mosquitto on 1883.
+services:
+  mariadb:
+    image: mariadb:11
+    container_name: caelitus-mariadb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3306:3306"
+    environment:
+      MARIADB_DATABASE: caelitus
+      MARIADB_USER: caelitus
+      MARIADB_PASSWORD: caelitus-dev
+      MARIADB_RANDOM_ROOT_PASSWORD: "yes"
+    volumes:
+      - caelitus-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      retries: 20
+
+volumes:
+  caelitus-data:

@@ -1,0 +1,25 @@
+{
+  // caelitus configuration for docker/compose.yml: hosts are the compose
+  // service names. See config/config.json for every key with comments.
+
+  "mqtt": {
+    "server": "mosquitto",
+    "port": 1883,
+    "clientId": "caelitus",
+    "will": { "topic": "caelitus/status", "payload": "offline", "onlinePayload": "online", "qos": 1, "retain": true }
+  },
+
+  "db": {
+    "host": "mariadb",
+    "port": 3306,
+    "user": "caelitus",
+    "password": "${CAELITUS_DB_PASSWORD}",
+    "database": "caelitus"
+  },
+
+  "server": { "port": 9000, "bindAddress": "0.0.0.0" },
+
+  "catalog": { "timeZone": "Europe/Athens" },
+
+  "log": { "level": "info" }
+}

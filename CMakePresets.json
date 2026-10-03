@@ -1,0 +1,59 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "description": "Debug build, no sanitizers",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "asan",
+      "displayName": "Debug + AddressSanitizer/UBSan",
+      "description": "Catches memory errors and undefined behaviour; the default for development",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "CAELITUS_SANITIZER": "address" }
+    },
+    {
+      "name": "tsan",
+      "displayName": "RelWithDebInfo + ThreadSanitizer",
+      "description": "Catches data races; run tests with: setarch $(uname -m) -R <test>",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "CAELITUS_SANITIZER": "thread" }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "description": "Optimised build for deployment and benchmarks",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_TESTING": "OFF" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "debug", "configurePreset": "debug" },
+    { "name": "asan", "configurePreset": "asan" },
+    { "name": "tsan", "configurePreset": "tsan" },
+    { "name": "release", "configurePreset": "release" }
+  ],
+  "testPresets": [
+    {
+      "name": "unit",
+      "configurePreset": "asan",
+      "filter": { "include": { "label": "unit" } },
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "all",
+      "configurePreset": "asan",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}
