@@ -45,3 +45,17 @@ find_library(MARIADBCPP_LIBRARY mariadbcpp PATH_SUFFIXES mariadb REQUIRED)
 # libmosquitto (libmosquitto-dev)
 find_path(MOSQUITTO_INCLUDE_DIR mosquitto.h REQUIRED)
 find_library(MOSQUITTO_LIBRARY mosquitto REQUIRED)
+
+# replxx: line editing for the interactive `caelitus --cli` (history, completion,
+# hints, UTF-8). BSD licensed; not packaged by Debian/Ubuntu, so always fetched.
+find_package(replxx QUIET)
+if (NOT replxx_FOUND)
+    set(REPLXX_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(REPLXX_BUILD_PACKAGE OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(replxx
+            URL https://github.com/AmokHuginnsson/replxx/archive/refs/tags/release-0.0.4.tar.gz
+            DOWNLOAD_EXTRACT_TIMESTAMP ON
+            SYSTEM)  # its headers raise none of our warnings
+    FetchContent_MakeAvailable(replxx)
+    target_compile_options(replxx PRIVATE -w)  # third-party code: its warnings are not ours to fix
+endif ()

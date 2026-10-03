@@ -41,4 +41,8 @@ inline std::size_t editDistance(const std::string& a, const std::string& b) {
     return row[b.size()];
 }
 
+/// How a value of `schema` is typed on the command line: `<integer>`,
+/// `<date>`, `any|all`, `<string,...>`; empty for a boolean (a bare flag).
+std::string placeholder(const Json& schema);
+
 }  // namespace caelitus::cli::detail

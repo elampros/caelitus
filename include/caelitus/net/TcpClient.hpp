@@ -43,6 +43,10 @@ public:
     ///         within the timeout.
     std::string request(std::string_view message);
 
+    /// False once the server has closed the connection (for example after its
+    /// idle timeout, or a restart). Does not block and does not send anything.
+    bool isOpen() const;
+
 private:
     void sendAll(std::string_view data);
 

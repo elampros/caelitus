@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
         if (std::string(argv[i]) != "--cli") continue;
         std::vector<std::string> args(argv + 1, argv + argc);
         args.erase(args.begin() + (i - 1));
-        return cli::run(args, std::cout, std::cerr);
+        return cli::run(args, std::cin, std::cout, std::cerr);
     }
 
     // Commands that need no configuration.

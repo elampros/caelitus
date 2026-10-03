@@ -141,7 +141,12 @@ cli::run() connects (net::TcpClient), reads the server's OpenRPC document with
 the command-line words into a call: cli::buildParams() converts each value by
 its parameter's schema. Exit codes are cli::ExitCode.
 
-Library: `caelitus::cli`. Depends on: @ref json, @ref net, @ref config.
+Without a method, cli::runLines() runs one command per line: from the
+interactive prompt (replxx, with Tab completion and hints computed by
+cli::Session) or from a file on standard input. cli::Session reconnects when
+the server has closed the connection.
+
+Library: `caelitus::cli`. Depends on: @ref json, @ref net, @ref config, replxx.
 
 @defgroup app app: the server
 @brief `main()`; app::Application, which creates, wires, starts and stops every

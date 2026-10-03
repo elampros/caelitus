@@ -84,6 +84,16 @@ void TcpClient::sendAll(std::string_view data) {
     }
 }
 
+bool TcpClient::isOpen() const {
+    if (fd_ < 0) return false;
+    pollfd p{fd_, POLLIN, 0};
+    if (::poll(&p, 1, 0) <= 0) return true;  // nothing pending: still open
+    if (p.revents & (POLLERR | POLLHUP | POLLNVAL)) return false;
+    char c;
+    const ssize_t n = ::recv(fd_, &c, 1, MSG_PEEK);
+    return n > 0 || (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR));
+}
+
 std::string TcpClient::request(std::string_view message) {
     std::string framed(message);
     framed.push_back('\0');

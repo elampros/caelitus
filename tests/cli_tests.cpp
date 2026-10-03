@@ -7,11 +7,13 @@
 #include "caelitus/api/OpenRpc.hpp"
 #include "caelitus/api/Schema.hpp"
 #include "caelitus/cli/Cli.hpp"
+#include "caelitus/cli/Session.hpp"
 #include "caelitus/core/DomainErrors.hpp"
 #include "caelitus/log/Log.hpp"
 #include "caelitus/net/TcpClient.hpp"
 #include "caelitus/net/TcpServer.hpp"
 
+#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -68,6 +70,7 @@ struct Server {
             .required("id", S::integer(1), "An id")
             .optional("tags", S::array(S::string(1)), "Tags")
             .optional("enabled", S::boolean(), "A flag")
+            .optional("order", S::enumOf({"asc", "desc"}), "Order")
             .returns("echo", Json{{"type", "object"}})
             .handler([](const api::Params& p) {
                 Json out = {{"id", p.required<std::int64_t>("id")}};
@@ -101,10 +104,11 @@ struct Server {
         int code;
         std::string out, err;
     };
-    Result run(std::vector<std::string> args) const {
+    Result run(std::vector<std::string> args, const std::string& input = "") const {
         args.insert(args.begin(), {"--port", std::to_string(tcp->port()), "--host", "127.0.0.1"});
+        std::istringstream in(input);
         std::ostringstream out, err;
-        const int code = cli::run(args, out, err);
+        const int code = cli::run(args, in, out, err);
         return {code, out.str(), err.str()};
     }
 };
@@ -123,6 +127,19 @@ struct EnvVar {
         else ::unsetenv(name.c_str());
     }
 };
+
+// A connection whose replies come from a function; it can be "closed" by the test.
+struct FakeConnection final : cli::Connection {
+    std::function<std::string(const std::string&)> reply;
+    bool open = true;
+    explicit FakeConnection(std::function<std::string(const std::string&)> r) : reply(std::move(r)) {}
+    std::string request(const std::string& text) override { return reply(text); }
+    bool isOpen() const override { return open; }
+};
+
+cli::Session session(const Server& server) {
+    return cli::Session("127.0.0.1", server.tcp->port(), 5s, cli::connectTcp);
+}
 
 std::filesystem::path writeConfig(const std::string& text) {
     const auto path =
@@ -263,9 +280,8 @@ TEST(calls_a_method_and_prints_its_result) {
 
 TEST(lists_methods_and_shows_help_from_the_servers_description) {
     const Server server;
-    const auto list = server.run({});
+    const auto list = server.run({"help"});
     CHECK_EQ(list.code, cli::kOk);
-    CHECK(contains(list.out, "(9.9.9)"));
     CHECK(contains(list.out, "test\n  test.echo"));
     CHECK(contains(list.out, "rpc.discover"));
 
@@ -308,8 +324,9 @@ TEST(an_unreachable_or_slow_server_exits_3) {
         freePort = stopped.tcp->port();
         stopped.tcp->stop();
     }
+    std::istringstream in;
     std::ostringstream out, err;
-    CHECK_EQ(cli::run({"--port", std::to_string(freePort), "--host", "127.0.0.1", "system.ping"}, out, err),
+    CHECK_EQ(cli::run({"--port", std::to_string(freePort), "--host", "127.0.0.1", "system.ping"}, in, out, err),
              cli::kUnreachable);
     CHECK(contains(err.str(), "Connection refused"));
     CHECK(contains(err.str(), "Is a caelitus server running at 127.0.0.1:" + std::to_string(freePort)));
@@ -317,20 +334,130 @@ TEST(an_unreachable_or_slow_server_exits_3) {
 
 TEST(a_peer_that_is_not_json_rpc_exits_3) {
     const cli::Connector fake = [](const std::string&, std::uint16_t, std::chrono::milliseconds) {
-        return cli::Transport([](const std::string&) { return std::string("HTTP/1.1 400 Bad Request"); });
+        return std::unique_ptr<cli::Connection>(
+            new FakeConnection([](const std::string&) { return std::string("HTTP/1.1 400 Bad Request"); }));
     };
+    std::istringstream in;
     std::ostringstream out, err;
-    CHECK_EQ(cli::run({"--port=1", "system.ping"}, out, err, fake), cli::kUnreachable);
+    CHECK_EQ(cli::run({"--port=1", "system.ping"}, in, out, err, fake), cli::kUnreachable);
     CHECK(contains(err.str(), "not JSON-RPC"));
 }
 
 TEST(help_option_needs_no_server) {
-    const cli::Connector never = [](const std::string&, std::uint16_t, std::chrono::milliseconds) -> cli::Transport {
+    const cli::Connector never = [](const std::string&, std::uint16_t,
+                                    std::chrono::milliseconds) -> std::unique_ptr<cli::Connection> {
         throw test::Failure{"should not connect"};
     };
+    std::istringstream in;
     std::ostringstream out, err;
-    CHECK_EQ(cli::run({"--help"}, out, err, never), cli::kOk);
+    CHECK_EQ(cli::run({"--help"}, in, out, err, never), cli::kOk);
     CHECK(contains(out.str(), "Usage: caelitus --cli"));
+}
+
+// ---- interactive and scripted sessions -----------------------------------------------
+
+TEST(split_words_like_a_shell) {
+    using V = std::vector<std::string>;
+    CHECK_EQ(cli::splitWords(R"(books.search --title="Ο Μικρός Πρίγκιπας"  --tags=a,b)"),
+             (V{"books.search", "--title=Ο Μικρός Πρίγκιπας", "--tags=a,b"}));
+    CHECK_EQ(cli::splitWords(R"(m '{"id": 1}')"), (V{"m", R"({"id": 1})"}));
+    CHECK_EQ(cli::splitWords(R"(a\ b "x \"y\" \\z" 'it''s' "")"), (V{"a b", R"(x "y" \z)", "its", ""}));
+    CHECK_EQ(cli::splitWords("  \t "), V{});
+    CHECK_THROWS_AS(cli::splitWords("m --title=\"open"), cli::UsageError);
+    CHECK_THROWS_AS(cli::splitWords("m 'open"), cli::UsageError);
+}
+
+TEST(tab_completes_methods_parameters_and_values) {
+    const Server server;
+    const cli::Session s = session(server);
+    using V = std::vector<std::string>;
+    const auto items = [&](const std::string& input) { return s.complete(input).items; };
+
+    const V first = items("");
+    CHECK(std::find(first.begin(), first.end(), "help") != first.end());
+    CHECK(std::find(first.begin(), first.end(), "test.echo") != first.end());
+    CHECK_EQ(items("test.e"), V{"test.echo"});
+    CHECK_EQ(s.complete("test.e").context, "test.e");
+    CHECK_EQ(items("help test.s"), V{"test.slow"});
+
+    CHECK_EQ(items("test.echo "), (V{"--id=", "--tags=", "--enabled", "--order="}));
+    CHECK_EQ(items("test.echo --id=1 --"), (V{"--tags=", "--enabled", "--order=", "--json", "--no-color", "--help"}));
+    CHECK_EQ(items("test.echo --order="), (V{"--order=asc", "--order=desc"}));
+    CHECK_EQ(items("test.echo --order d"), V{"desc"});
+    CHECK_EQ(items("test.echo --enabled=f"), V{"--enabled=false"});
+    CHECK_EQ(items("test.echo --tags "), V{});       // free text: nothing to offer
+    CHECK_EQ(items("test.echo --tags=\"a b"), V{});  // inside a quote
+    CHECK_EQ(items("nope.nope --"), V{});
+}
+
+TEST(hints_show_the_completion_or_the_missing_required_parameters) {
+    const Server server;
+    const cli::Session s = session(server);
+    const auto hint = [&](const std::string& input) { return s.hint(input); };
+
+    CHECK_EQ(hint("test.ec").items, std::vector<std::string>{"test.echo  Echoes its parameters."});
+    CHECK_EQ(hint("test.ec").context, "test.ec");
+    CHECK_EQ(hint("test.echo --ta").items, std::vector<std::string>{"--tags=<string,...>  Tags"});
+    CHECK_EQ(hint("test.echo --tags=").items, std::vector<std::string>{"<string,...>  Tags"});
+    CHECK_EQ(hint("test.echo --tags=").context, "");
+    CHECK_EQ(hint("test.echo ").items, std::vector<std::string>{"--id <integer>"});
+    CHECK(hint("test.echo 5 ").items.empty());       // given by position
+    CHECK(hint("test.echo --id 5 ").items.empty());  // given by name, value apart
+    CHECK(hint("test.").items.empty());              // several methods: no single hint
+}
+
+TEST(commands_from_a_file_run_line_by_line) {
+    const Server server;
+    const auto r =
+        server.run({"--json"}, "# a comment\n\ntest.echo 1\nnope\ntest.echo --id=2 --order=asc\nexit\ntest.echo 3\n");
+    CHECK_EQ(r.out, "{\"id\":1}\n{\"id\":2}\n");  // stops at exit
+    CHECK(contains(r.err, "line 4: Unknown method 'nope'"));
+    CHECK_EQ(r.code, cli::kBadUsage);  // the last failure
+
+    const auto ok = server.run({}, "test.echo 1 --json\ntest.echo 2 --json\n");
+    CHECK_EQ(ok.code, cli::kOk);
+    const auto failed = server.run({}, "test.find 1\ntest.echo 2\n");
+    CHECK_EQ(failed.code, cli::kCallFailed);
+    CHECK(contains(failed.err, "line 1: Error -32001: thing 1 not found"));
+}
+
+TEST(a_closed_connection_is_reopened_before_the_next_command) {
+    const Server server;
+    int connections = 0;
+    FakeConnection* last = nullptr;
+    const cli::Connector connect = [&](const std::string& h, std::uint16_t p, std::chrono::milliseconds t) {
+        ++connections;
+        std::shared_ptr<cli::Connection> real = cli::connectTcp(h, p, t);
+        auto c = std::make_unique<FakeConnection>([real](const std::string& text) { return real->request(text); });
+        last = c.get();
+        return std::unique_ptr<cli::Connection>(std::move(c));
+    };
+    cli::Session s("127.0.0.1", server.tcp->port(), 5s, connect);
+    std::ostringstream out, err;
+    CHECK_EQ(s.execute({"test.echo", "1"}, out, err, true, false), cli::kOk);
+    CHECK_EQ(connections, 1);
+    last->open = false;  // e.g. the server's idle timeout
+    CHECK_EQ(s.execute({"test.echo", "2"}, out, err, true, false), cli::kOk);
+    CHECK_EQ(connections, 2);
+    CHECK_EQ(out.str(), "{\"id\":1}\n{\"id\":2}\n");
+}
+
+TEST(a_call_whose_reply_is_lost_is_not_sent_again) {
+    const Server server;
+    const std::string discover =
+        net::TcpClient("127.0.0.1", server.tcp->port()).request(R"({"jsonrpc":"2.0","id":1,"method":"rpc.discover"})");
+    int calls = 0;
+    const cli::Connector connect = [&](const std::string&, std::uint16_t, std::chrono::milliseconds) {
+        return std::unique_ptr<cli::Connection>(new FakeConnection([&](const std::string& text) {
+            if (contains(text, "rpc.discover")) return discover;
+            ++calls;
+            throw net::NetError("connection reset");
+        }));
+    };
+    cli::Session s("127.0.0.1", 1, 5s, connect);
+    std::ostringstream out, err;
+    CHECK_THROWS_AS(s.execute({"test.echo", "1"}, out, err, true, false), net::NetError);
+    CHECK_EQ(calls, 1);
 }
 
 // ---- TcpClient -----------------------------------------------------------------------

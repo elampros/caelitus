@@ -33,17 +33,24 @@ public:
     using std::runtime_error::runtime_error;
 };
 
-/// Sends one JSON-RPC request (text) and returns the reply (text).
-/// @throws net::NetError when the server cannot be reached or does not reply.
-using Transport = std::function<std::string(const std::string& request)>;
+/// A connection to the server.
+class Connection {
+public:
+    virtual ~Connection() = default;
+    /// Sends one JSON-RPC request (text) and returns the reply (text).
+    /// @throws net::NetError when the server does not reply.
+    virtual std::string request(const std::string& text) = 0;
+    /// False once the server has closed the connection (idle timeout, restart).
+    virtual bool isOpen() const = 0;
+};
 
-/// Opens a connection; the returned Transport sends over it.
+/// Opens a connection.
 /// @throws net::NetError if the connection fails.
-using Connector =
-    std::function<Transport(const std::string& host, std::uint16_t port, std::chrono::milliseconds timeout)>;
+using Connector = std::function<std::unique_ptr<Connection>(const std::string& host, std::uint16_t port,
+                                                            std::chrono::milliseconds timeout)>;
 
 /// Connects over TCP with net::TcpClient (the default Connector).
-Transport connectTcp(const std::string& host, std::uint16_t port, std::chrono::milliseconds timeout);
+std::unique_ptr<Connection> connectTcp(const std::string& host, std::uint16_t port, std::chrono::milliseconds timeout);
 
 /// Client options, given before the method name.
 struct Options {
@@ -106,16 +113,23 @@ std::string methodList(const Json& document);
 /// strings, numbers and literals get ANSI colors.
 std::string formatJson(const Json& value, bool color);
 
-/// Runs the client: parses `args` (what follows `--cli`), connects, reads the
-/// API description with `rpc.discover`, then lists the methods, prints help,
-/// or calls a method and prints its result.
+/// Runs the client: parses `args` (what follows `--cli`), connects and reads
+/// the API description with `rpc.discover`. Then:
+///
+/// - with a method (or `help [method]`): runs that one command;
+/// - without one, on a terminal: an interactive prompt (history, Tab completion,
+///   hints) until `exit` or Ctrl-D;
+/// - without one, with `in` not a terminal: one command per line of `in`
+///   (`caelitus --cli < commands.txt`).
 ///
 /// @param args     Command-line words after `--cli`.
+/// @param in       Commands, when none is given in `args`; the prompt is used
+///                 only when this is `std::cin` on a terminal.
 /// @param out      Results and help.
 /// @param err      Errors.
 /// @param connect  How to reach the server (tests pass their own).
-/// @return An ExitCode.
-int run(const std::vector<std::string>& args, std::ostream& out, std::ostream& err,
+/// @return An ExitCode; for several commands, that of the last one that failed.
+int run(const std::vector<std::string>& args, std::istream& in, std::ostream& out, std::ostream& err,
         const Connector& connect = connectTcp);
 
 /// The usage text of `caelitus --cli --help`.

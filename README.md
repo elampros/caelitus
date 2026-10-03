@@ -127,6 +127,7 @@ sudo apt install build-essential cmake git \
 | spdlog ≥ 1.12 (+ fmt) | Logging | Downloaded automatically if missing |
 | nlohmann/json ≥ 3.11 | JSON | Downloaded automatically if missing |
 | Asio (standalone) | Asynchronous TCP | Downloaded automatically if missing |
+| replxx 0.0.4 | Line editing for the interactive `caelitus --cli` | Not packaged by Ubuntu: always downloaded (BSD licence) |
 | libmosquitto | MQTT client | Required |
 | **MariaDB Connector/C++** | Database driver | Not in Ubuntu's repositories: install the `mariadb-connector-cpp` package from [MariaDB](https://mariadb.com/downloads/connectors/connectors-data-access/cpp-connector/), or build it from source as `docker/server.Dockerfile` does |
 | Doxygen + Graphviz | API documentation | Optional (`docs` target) |
@@ -303,7 +304,7 @@ a server: it connects to a running one, reads the list of methods and their
 parameters from it (`rpc.discover`), and calls the method you name:
 
 ```bash
-caelitus --cli                                   # every method, grouped
+caelitus --cli help                              # every method, grouped
 caelitus --cli help books.search                 # one method's parameters
 caelitus --cli system.health
 caelitus --cli books.get 42                      # a required parameter by position
@@ -351,6 +352,46 @@ checks:
 ```bash
 caelitus --cli --timeout 2 system.ping >/dev/null || echo "caelitus is down"
 ```
+
+#### Interactive
+
+Without a method, on a terminal, `caelitus --cli` opens a prompt and stays
+connected:
+
+```text
+$ caelitus --cli
+caelitus 1.0.0 at 127.0.0.1:9000, 32 methods. help lists them, Tab completes, Ctrl-D or exit quits.
+caelitus> books.search --title="Ο Μικρός Πρίγκιπας" --pageSize 3
+caelitus> scheduler.pause ▏--name <string>          ← grey hint: what is still required
+caelitus> books.search --so⇥  →  books.search --sort=  ⇥⇥  publishedDesc  publishedAsc  titleAsc …
+```
+
+| Key | Does |
+|---|---|
+| Tab | Completes method names, then parameters not given yet (`--title=`), then values of enums and booleans; twice lists the choices |
+| ↑ ↓, Ctrl-R | History, kept across runs in `~/.local/state/caelitus/cli-history` (`$XDG_STATE_HOME`) |
+| Ctrl-C | Drops the line being typed |
+| Ctrl-D, `exit`, `quit` | Leaves |
+
+The commands are the same as on the command line, `help` included; `--json`
+or `--no-color` after a method apply to that command. Values with blanks are
+quoted as in a shell (`"…"`, `'…'`, `\ `). If the server closed the connection
+since the last command (its idle timeout is 5 minutes, or it restarted), the
+client connects again before the next one. It never repeats a command whose
+answer was lost, since it may have been carried out.
+
+#### Commands from a file
+
+When standard input is not a terminal, every line is a command:
+
+```bash
+caelitus --cli --json < commands.txt
+printf 'scheduler.pause top-books\nscheduler.run reaction-cleanup\n' | caelitus --cli
+```
+
+Blank lines and `#` comments are skipped, `exit` stops, errors are prefixed
+with `line N:`, and the exit code is that of the last command that failed (0 if
+none did).
 
 ### Raw requests from the shell
 
@@ -613,7 +654,7 @@ flowchart BT
 | `catalog_mariadb` | `catalog/mariadb/` | SQL implementations of the catalog repositories; the schema migrations |
 | `api` | `api/` | JSON-RPC protocol, the catalog and operations (scheduler, health) methods, OpenRPC, the MQTT like listener |
 | `config` | `config/` | Loading and validating `config.json` |
-| `cli` | `cli/` | The `caelitus --cli` client: arguments to JSON-RPC calls, help, output |
+| `cli` | `cli/` | The `caelitus --cli` client: arguments to JSON-RPC calls, help, output, the interactive prompt |
 | `app` + executable | `app/` | `Application` (wiring, the job list), `HealthMonitor`, and `main()` |
 
 Each library's **public headers** are in `include/caelitus/<dir>/`; its `.cpp`
@@ -863,10 +904,16 @@ from that.
 | `buildParams()` | Arguments → the `params` object, converting each value by its parameter's schema |
 | `methodHelp()`, `methodList()` | Help text from the OpenRPC document |
 | `formatJson()` | Indented, colored output |
+| `Session` | One connection plus the server's description: runs a command, reconnects when the server closed the connection, and computes Tab completions and hints |
+| `splitWords()` | Splits a typed line into words the way a shell does (quotes, `\`) |
+| `runLines()` | The loop of the prompt and of command files |
+| `terminalReader()` (private) | The prompt itself, on [replxx](https://github.com/AmokHuginnsson/replxx): editing, UTF-8, history, completion and hint callbacks into `Session` |
 
-The connection is a `cli::Connector`, so tests can give it a fake server; the
-real one is `net::TcpClient`. One connection serves both the `rpc.discover`
-and the call.
+The connection is a `cli::Connection` made by a `cli::Connector`, so tests can
+give it a fake server; the real one wraps `net::TcpClient`. Everything except
+the terminal itself is tested without one: `runLines()` reads from any
+`LineReader`, and the completions and hints are plain functions of the typed
+text.
 
 ### Scheduled jobs and health
 
@@ -1183,7 +1230,7 @@ handled, `info` is the story of the process (start, stop, connect), `debug` and
 | `tcp_tests` | unit | Framing, ordering, limits, backpressure, shutdown (real sockets on localhost) |
 | `cache_tests`, `catalog_service_tests` | unit | The cache (incl. its memory estimate); every service rule (in-memory fakes) |
 | `api_tests` | unit | JSON-RPC protocol, every method over fakes, results checked against their schemas, OpenRPC |
-| `cli_tests` | unit | The `--cli` client: argument conversion, help, host/port lookup, exit codes, timeouts (against a real TCP server) |
+| `cli_tests` | unit | The `--cli` client: argument conversion, help, host/port lookup, exit codes, timeouts, line splitting, completion, hints, command files, reconnecting (against a real TCP server) |
 | `app_tests` | unit | Generated files are current; sample data passes the rules |
 | `db_integration_tests` | integration | The MariaDB driver and the db layer against a real server |
 | `catalog_integration_tests` | integration | The SQL repositories against a real server |
@@ -1398,6 +1445,7 @@ Any other component can also add jobs at runtime through
 | `Configuration error: …: db.password: environment variable CAELITUS_DB_PASSWORD is not set` | `export CAELITUS_DB_PASSWORD=caelitus-dev` (or your password) |
 | `Database error: Access denied for user …` | Wrong user/password, or the database container was created with other credentials; `docker compose -f dev/docker-compose.yml down -v` recreates it |
 | `Server error: Cannot listen on 0.0.0.0:9000: … Address already in use` | Another caelitus (or the Docker stack) uses port 9000: `ss -ltnp \| grep 9000` |
+| The `caelitus>` prompt shows no grey hints | Hints are drawn only in color: not with `--no-color` or `$NO_COLOR` |
 | `caelitus --cli: Cannot connect to 127.0.0.1:9000: Connection refused` (exit 3) | No server there: start it, or point the client elsewhere with `--port` / `--host` (the Docker stack's server is also on 9000) |
 | `caelitus --cli: books.search has no parameter --port; …` | Everything after the method is the method's; put `--host`, `--port`, `--timeout`, `--config` before it (only `--json` and `--no-color` may come after) |
 | `MQTT broker not reachable yet` | No broker on 1883. The server keeps working; start mosquitto and it connects by itself |

@@ -8,7 +8,7 @@
 #     <- catalog                             (domain + services; db/mqtt interfaces only)
 #     <- catalog_mariadb                     (repositories + schema migrations)
 #     <- api, config
-#     <- cli                                 (the --cli client: net, json, config)
+#     <- cli                                 (the --cli client: net, json, config, replxx)
 #     <- app                                 (Application, HealthMonitor: wires everything)
 #     <- caelitus                            (the executable: main)
 
@@ -102,9 +102,9 @@ caelitus_module(config
 
 # ---- the command-line client (caelitus --cli) ------------------------------------
 caelitus_module(cli
-        SOURCES cli/Cli.cpp cli/Format.cpp cli/Params.cpp
+        SOURCES cli/Cli.cpp cli/Format.cpp cli/Params.cpp cli/Session.cpp cli/Terminal.cpp
         PUBLIC caelitus::json
-        PRIVATE caelitus::net caelitus::config)
+        PRIVATE caelitus::net caelitus::config replxx::replxx)
 
 # ---- the server ----------------------------------------------------------------
 # The wiring (Application, HealthMonitor) is a library of its own, so the

@@ -21,25 +21,6 @@ std::string refName(const Json& value) {
     return slash == std::string::npos ? ref : ref.substr(slash + 1);
 }
 
-// "<integer>", "<date>", "any|all", "<string,...>": how a value is typed.
-std::string placeholder(const Json& schema) {
-    if (schema.contains("enum")) {
-        std::string out;
-        for (const auto& v : schema["enum"])
-            out += (out.empty() ? "" : "|") + (v.is_string() ? v.get<std::string>() : v.dump());
-        return out;
-    }
-    const std::string type = schema.value("type", "");
-    if (type == "array") {
-        std::string item = placeholder(schema.value("items", Json::object()));
-        if (item.size() > 2 && item.front() == '<') item = item.substr(1, item.size() - 2);
-        return "<" + item + ",...>";
-    }
-    if (type == "boolean") return "";  // a bare --flag
-    if (schema.contains("format")) return "<" + schema["format"].get<std::string>() + ">";
-    return "<" + (type.empty() ? std::string("json") : type) + ">";
-}
-
 std::string number(const Json& v) {
     if (v.is_number_float() && v.get<double>() == static_cast<double>(static_cast<long long>(v.get<double>())))
         return std::to_string(static_cast<long long>(v.get<double>()));
@@ -110,6 +91,29 @@ void writeJson(std::ostringstream& out, const Json& v, bool color, int indent) {
 
 }  // namespace
 
+namespace detail {
+
+// "<integer>", "<date>", "any|all", "<string,...>": how a value is typed.
+std::string placeholder(const Json& schema) {
+    if (schema.contains("enum")) {
+        std::string out;
+        for (const auto& v : schema["enum"])
+            out += (out.empty() ? "" : "|") + (v.is_string() ? v.get<std::string>() : v.dump());
+        return out;
+    }
+    const std::string type = schema.value("type", "");
+    if (type == "array") {
+        std::string item = detail::placeholder(schema.value("items", Json::object()));
+        if (item.size() > 2 && item.front() == '<') item = item.substr(1, item.size() - 2);
+        return "<" + item + ",...>";
+    }
+    if (type == "boolean") return "";  // a bare --flag
+    if (schema.contains("format")) return "<" + schema["format"].get<std::string>() + ">";
+    return "<" + (type.empty() ? std::string("json") : type) + ">";
+}
+
+}  // namespace detail
+
 std::string formatJson(const Json& value, bool color) {
     std::ostringstream out;
     writeJson(out, value, color, 0);
@@ -125,7 +129,8 @@ std::string methodHelp(const Json& method) {
     const Json& params = detail::arrayAt(method, "params");
     out << "\nUsage: caelitus --cli " << name;
     for (const auto& p : params)
-        if (p.value("required", false)) out << " --" << p.value("name", "") << " " << placeholder(p.at("schema"));
+        if (p.value("required", false))
+            out << " --" << p.value("name", "") << " " << detail::placeholder(p.at("schema"));
     if (std::any_of(params.begin(), params.end(), [](const Json& p) { return !p.value("required", false); }))
         out << " [options]";
     out << "\n";
@@ -135,7 +140,7 @@ std::string methodHelp(const Json& method) {
         std::size_t width = 0;
         for (const auto& p : params) {
             std::string l = "--" + p.value("name", "");
-            if (const auto ph = placeholder(p.at("schema")); !ph.empty()) l += " " + ph;
+            if (const auto ph = detail::placeholder(p.at("schema")); !ph.empty()) l += " " + ph;
             if (l.size() <= kMaxLeft) width = std::max(width, l.size() + 2);
             left.push_back(std::move(l));
         }

@@ -536,6 +536,31 @@ AddressSanitizer caught a use-after-free in the first version: nlohmann's
 into that temporary. A helper that returns a reference to the real array fixed
 every such place.
 
+### 27. The interactive prompt
+
+The second step of the client: `caelitus --cli` alone opens a `caelitus>`
+prompt. The line-editing library was the one real choice. The classic
+`linenoise` mishandles UTF-8 (Greek titles would break the editing), GNU
+readline is GPL, and libedit would need a system package; **replxx** (BSD, C++,
+UTF-8, history, completion and hints) is not packaged by Ubuntu, so CMake
+downloads a pinned release, as it already could for spdlog, JSON and Asio.
+
+- `cli::Session` keeps the connection and the API description. Before each
+  command it checks that the server has not closed the connection (the idle
+  timeout is 5 minutes; a restart does the same) and reconnects. A command
+  whose reply was lost is never resent: it may have created a book already.
+- Tab completion and the grey hints are computed from the OpenRPC document:
+  method names, the parameters not given yet, enum and boolean values, and
+  after a method the required parameters still missing.
+- Lines are split like a shell does, so `--title="Ο Μικρός Πρίγκιπας"` works.
+- The same loop runs command files: `caelitus --cli < commands.txt`, with
+  `line N:` in front of errors and the last failure as the exit code.
+
+24 client tests, the new ones covering splitting, completion, hints, command
+files, reconnecting and the no-resend rule. The prompt itself was driven through
+a pseudo-terminal: Tab, Greek input, Ctrl-C, Ctrl-D, the history file, and a
+server restart in the middle of a session.
+
 ## Decisions at a glance
 
 | Decision | Made by | Why |
@@ -561,6 +586,8 @@ every such place.
 | Builds limited to 3 parallel jobs | Assistant, after two freezes | Unlimited `make -j` exhausted the laptop's memory |
 | A client inside the executable (`caelitus --cli`) | **Owner** | One binary to ship; no separate tool |
 | The client reads the methods from `rpc.discover` at run time | Assistant, accepted | No client code per method; never out of step with the server |
+| replxx for the prompt | Assistant | UTF-8 (Greek), BSD licence, completion and hints |
+| Reconnect before a command, never resend one | Assistant | Survives idle timeouts and restarts without creating anything twice |
 
 ## Bugs found and fixed
 
@@ -582,8 +609,8 @@ every such place.
 
 ## Still open
 
-- The CLI's second step: an interactive prompt (`caelitus --cli` with history
-  and tab completion), and tables instead of JSON for the most used methods.
+- Tables instead of JSON for the most used CLI methods (`books.search`,
+  `scheduler.list`, `system.health`).
 - Automated tests for the web gateway and an end-to-end UI test (Playwright),
   proposed at the end of step 12.
 - From the original plan: full-text search, and keeping several server instances'
