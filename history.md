@@ -434,6 +434,57 @@ and empty-looking dashboard panels. Changed:
 Verified with screenshots (desktop light/dark, phone, server stopped) and the
 production build, also inside the Docker image.
 
+---
+
+## Session 2, continued: periodic jobs
+
+### 24. A scheduler, a health check
+
+The owner opened two new areas, periodic work ("every X seconds do something")
+and a command-line tool, and asked for proposals. The proposal: a reusable
+scheduler module first, then the CLI (a `caelitus` with subcommands for
+operators, plus a `caelitusctl` client whose commands are generated from the
+OpenRPC description). The owner's decisions: as proposed, starting with the
+scheduler; job settings in `config.json`; JSON-RPC methods over TCP to stop and
+start jobs; a **health** job every 15 seconds checking the database, the cache's
+size, statistics and uptime, writing to the log when something is wrong; the
+scheduler reusable inside the application so more jobs can be added later;
+comments everywhere and every Markdown file updated.
+
+Built:
+
+- **`scheduler` module**, independent of the catalog: schedules `every 15s`
+  (after the previous run ends), `rate 1s` (fixed rate, missed runs skipped) and
+  `cron 0 3 * * *` with a cron evaluator that works in local time across the
+  summer-time changes (`TimeZone` gained local-to-UTC conversion for it).
+  One timer thread, a small worker pool, no job ever overlapping itself,
+  timeouts reported, retries with a doubling delay, pause/resume/run-now, and a
+  status per job. `PeriodicTask` was retired.
+- **Five jobs**, defined in one place (`Application::defineJobs`):
+  `reaction-flush`, `book-cache-reload` (both moved from `PeriodicTask`),
+  `health`, `reaction-cleanup` (03:00 Athens, keeps 400 days of per-day counts)
+  and `top-books` (today's top 10 as retained JSON on MQTT every minute).
+- **Configuration**: `scheduler.threads` and `scheduler.jobs.<name>` overrides
+  (schedule, enabled, timeout, jitter, retries), validated at load; an unknown
+  job name stops startup with the list of known ones. A `health` section holds
+  the thresholds. The old `flushIntervalMs` and `bookCacheReloadSec` became job
+  schedules.
+- **API**: `scheduler.list`, `scheduler.get`, `scheduler.run`,
+  `scheduler.pause`, `scheduler.resume` and `system.health` (32 methods now).
+- **Health** (`app::HealthMonitor`): database round trip and pool, MQTT, book
+  cache entries and estimated memory, TCP server counters, like buffer, resident
+  memory, threads, uptime and failing jobs. New problems are logged as warnings
+  at once (then at most every 5 minutes), cleared ones as "resolved".
+- `Application` became a library, so the end-to-end test now starts the real
+  application instead of a hand-written copy of its wiring (the copy had already
+  drifted: it had no scheduler).
+
+Verified: 15 scheduler tests (also under ThreadSanitizer, 0 races), the
+end-to-end test runs the jobs and reads the health over TCP, and a live run
+against the development database showed the five jobs with the cleanup planned
+for 03:00 Athens time. Pausing the test database showed the health job's warning
+and, after it returned, the "resolved" lines.
+
 ## Decisions at a glance
 
 | Decision | Made by | Why |
@@ -454,6 +505,8 @@ production build, also inside the Docker image.
 | Web UI via a Node gateway, React + Vite + TS, monorepo, no login | Owner's choices on the assistant's proposal | Browsers cannot speak raw TCP |
 | `include/` + `src/`, Doxygen + doxygen-awesome | Owner asked; tool chosen by assistant | Clear public API; modern-looking generated docs |
 | Driver code in separate libraries | Assistant (owner: "any refactoring you want") | The build enforces the architecture |
+| A reusable scheduler; jobs in `config.json`; start/stop over JSON-RPC; a health job every 15 s | Owner | Periodic work in one place, controllable while running |
+| every / rate / cron schedules, no overlap, retries, timeouts reported | Assistant | Covers flushes, reloads and nightly work with one mechanism |
 
 ## Bugs found and fixed
 
@@ -473,6 +526,8 @@ production build, also inside the Docker image.
 
 ## Still open
 
+- The command-line tool (`caelitus` subcommands and `caelitusctl`), agreed as
+  the next step after the scheduler.
 - Automated tests for the web gateway and an end-to-end UI test (Playwright),
   proposed at the end of step 12.
 - From the original plan: full-text search, and keeping several server instances'

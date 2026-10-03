@@ -55,6 +55,10 @@ there were no likes.
 **API.** Every method of the server's JSON-RPC API, read live from its OpenRPC
 description and grouped by area: parameters, result, possible errors and data
 schemas, with a "try it" form that sends a real request and shows the answer.
+This includes the operations methods (`system.health`, `scheduler.list`,
+`scheduler.run`, `scheduler.pause`, `scheduler.resume`): the page is the
+quickest way to see the server's health or to run a job by hand (see
+[Server jobs and health](#server-jobs-and-health)).
 
 At the top right, three indicators show the server, the MQTT broker and the
 browser's live connection.
@@ -243,6 +247,35 @@ curl -s -H 'content-type: application/json' localhost:8080/rpc \
 curl -s -H 'content-type: application/json' localhost:8080/react -d '{"bookId":1,"kind":"like"}'
 ```
 
+### Server jobs and health
+
+`GET /health` only says whether each piece is **reachable** (for the server it
+sends `system.ping`). What the server is actually doing is one JSON-RPC call
+away, through the same `POST /rpc`:
+
+```bash
+rpc() { curl -s -H 'content-type: application/json' localhost:8080/rpc -d "$1"; echo; }
+rpc '{"jsonrpc":"2.0","id":1,"method":"system.health"}'      # status "ok" or "degraded", plus "problems"
+rpc '{"jsonrpc":"2.0","id":2,"method":"scheduler.list"}'     # every job: schedule, paused, last run, last error
+rpc '{"jsonrpc":"2.0","id":3,"method":"scheduler.run","params":{"name":"book-cache-reload"}}'
+```
+
+The server runs its periodic work as named jobs (the full list, schedules and
+configuration are in the main README,
+[Scheduled jobs and health](../README.md#scheduled-jobs-and-health)). The ones
+you can see from the web side:
+
+| Job | Default | What you notice in the UI |
+|---|---|---|
+| `reaction-flush` | every second | A like is counted (rankings, the book panel's numbers) up to about a second after it is sent; the book panel re-reads its numbers 1.3 s after a click for that reason. Paused or failing, the Live chart still moves but nothing is counted |
+| `book-cache-reload` | every 5 minutes | Turning likes on for a book through the API takes effect at once; a change made directly in the database is picked up within 5 minutes (or run the job by hand) |
+| `health` | every 15 seconds | Feeds `system.health`; the simulator at a high `RATE` can make it report a full like buffer |
+| `top-books` | every minute | Publishes today's top 10 (retained) to `catalog/stats/top-today` for MQTT devices. The UI does not use it: its rankings call `reactions.top`, which covers every period |
+| `reaction-cleanup` | 03:00 Athens time | Old per-day counts disappear; "all time" totals are kept |
+
+A job paused with `scheduler.pause` stays paused until `scheduler.resume` or a
+server restart.
+
 ### WebSocket messages (`/ws`)
 
 Every message is one JSON object with a `type` and the time `at` (ISO 8601):
@@ -373,6 +406,8 @@ All from `web/`:
 | `npm run seed`: "The catalog already has N books" | Seeding only runs on an empty catalog; recreate the database or skip it |
 | `npm run simulate`: "No books accept likes yet" | Seed first, or enable likes on some books (the switch in the book panel) |
 | Likes on the Live chart but rankings do not move | The server is down or the books do not accept likes: the chart shows likes *sent*, rankings show likes *counted* |
+| Server online, likes counted nowhere (rankings and the book panel stay still) | The `reaction-flush` job is paused or failing: `scheduler.list` (API page or `/rpc`) shows its `paused` flag and last error; `scheduler.resume` with `{"name":"reaction-flush"}` |
+| Is the server healthy? | `system.health` on the API page: `status` is `degraded` and `problems` says why (database slow or down, broker lost, like buffer full, a job failing) |
 | `npm run dev`: port 5173 or 8080 in use | Another dev server or the Docker stack is running: stop it, or `PORT=8081 GATEWAY_URL=http://127.0.0.1:8081 npm run dev` |
 | TypeScript errors after pulling changes | `npm run gen` (the API changed), then `npm run typecheck` |
 | `npm: command not found` in a new terminal | nvm is not loaded: `source ~/.nvm/nvm.sh` (or open a login shell) |

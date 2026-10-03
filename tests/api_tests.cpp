@@ -8,12 +8,15 @@
 #include "caelitus/api/JsonRpc.hpp"
 #include "caelitus/api/MqttReactionListener.hpp"
 #include "caelitus/api/OpenRpc.hpp"
+#include "caelitus/api/OperationsApi.hpp"
 #include "caelitus/api/Schema.hpp"
 #include "caelitus/api/SchemaValidator.hpp"
 #include "caelitus/mqtt/Topic.hpp"
 
+#include <atomic>
 #include <fstream>
 #include <set>
+#include <thread>
 
 using namespace caelitus;
 using namespace caelitus::api;
@@ -52,8 +55,13 @@ struct Api {
         std::make_shared<ReactionService>(reactionRepo, bookRepo, bookCache, tx, TimeZone::utc()),
     };
     JsonRpcHandler rpc;
+    std::shared_ptr<scheduler::Scheduler> jobs = std::make_shared<scheduler::Scheduler>();
+    std::optional<HealthReport> health;
 
-    Api() { registerCatalogApi(rpc, services); }
+    Api() {
+        registerCatalogApi(rpc, services);
+        registerOperationsApi(rpc, jobs, [this] { return health; });
+    }
 
     // The result of a successful call, checked against the method's declared
     // result schema, so the JSON the API returns cannot drift from its
@@ -372,6 +380,25 @@ TEST(every_method_returns_what_its_schema_says) {
     checked("reactions.top", {{"period", "today"}});
     checked("reactions.top", {{"period", "allTime"}, {"order", "mostDisliked"}});
     checked("rpc.discover");
+
+    std::atomic<bool> release{false};
+    a.jobs->add({"slow", "test", scheduler::Schedule::every(std::chrono::hours(1)), [&](scheduler::JobContext&) {
+                     while (!release) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                 }});
+    a.jobs->start();
+    CHECK_EQ(checked("scheduler.list").size(), 1u);
+    CHECK_EQ(checked("scheduler.get", {{"name", "slow"}})["lastResult"], "never");
+    CHECK_EQ(checked("scheduler.pause", {{"name", "slow"}})["paused"], true);
+    CHECK_EQ(checked("scheduler.run", {{"name", "slow"}})["running"], true);  // runs while paused
+    CHECK_EQ(checked("scheduler.resume", {{"name", "slow"}})["paused"], false);
+    release = true;
+    a.health = HealthReport{};
+    a.health->status = "degraded";
+    a.health->problems = {"database unreachable: test"};
+    a.health->database.pingMs = std::nullopt;
+    a.health->process.memoryBytes = 1024;
+    CHECK_EQ(checked("system.health")["problems"].size(), 1u);
+    a.jobs->stop();
     checked("reviews.delete", {{"id", review["id"]}});
     checked("books.delete", {{"id", book["id"]}});
     checked("authors.delete", {{"id", author["id"]}});
@@ -379,6 +406,31 @@ TEST(every_method_returns_what_its_schema_says) {
 
     for (const auto& [name, m] : a.rpc.methods())
         if (!covered.count(name)) throw test::Failure{"method not covered by this test: " + name};
+}
+
+TEST(scheduler_methods_report_errors) {
+    Api a;
+    std::atomic<bool> release{false};
+    a.jobs->add({"busy", "test", scheduler::Schedule::every(std::chrono::hours(1)), [&](scheduler::JobContext&) {
+                     while (!release) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                 }});
+    a.jobs->start();
+    auto e = a.error("scheduler.get", {{"name", "nope"}});
+    CHECK_EQ(e["code"], errors::kNotFound);
+    CHECK_EQ(e["data"]["entity"], "job");
+    CHECK_EQ(e["data"]["id"], "nope");
+    CHECK_EQ(a.error("scheduler.pause", {{"name", "nope"}})["code"], errors::kNotFound);
+    CHECK_EQ(a.error("scheduler.resume", {{"name", "nope"}})["code"], errors::kNotFound);
+    CHECK_EQ(a.error("scheduler.run", {{"name", "nope"}})["code"], errors::kNotFound);
+    a.result("scheduler.run", {{"name", "busy"}});
+    auto conflict = a.error("scheduler.run", {{"name", "busy"}});
+    CHECK_EQ(conflict["code"], errors::kConflict);
+    CHECK_EQ(conflict["data"]["code"], "job_running");
+    CHECK_EQ(a.error("scheduler.get", {{"name", ""}})["code"], errors::kInvalidParams);
+    release = true;
+    a.jobs->stop();
+    // Before the first health check there is nothing to return.
+    CHECK_EQ(a.error("system.health")["code"], errors::kInternalError);
 }
 
 TEST(openrpc_document_describes_every_method) {
@@ -403,8 +455,9 @@ TEST(openrpc_document_describes_every_method) {
 }
 
 TEST(committed_openrpc_document_is_current) {
-    JsonRpcHandler rpc;
+    JsonRpcHandler rpc;  // as `caelitus --openrpc` builds it
     registerCatalogApi(rpc, {});
+    registerOperationsApi(rpc, nullptr, nullptr);
     const Json generated = openRpcDocument(rpc, catalogApiInfo());
     std::ifstream in(std::string(CAELITUS_SOURCE_DIR) + "/docs/openrpc.json");
     if (!in) throw test::Failure{"docs/openrpc.json is missing; run: cmake --build <build-dir> --target openrpc"};

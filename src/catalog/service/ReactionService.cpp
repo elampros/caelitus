@@ -151,4 +151,17 @@ std::size_t ReactionService::pending() const {
     return buffer_.size();
 }
 
+std::int64_t ReactionService::deleteOlderThan(int keepDays) {
+    if (keepDays < 366) throw std::invalid_argument("keepDays must be at least 366");
+    const Date cutoff = Date::fromDays(timeZone_.localDate(clock_()).toDays() - keepDays + 1);
+    const std::int64_t deleted = tx_->inTransaction([&] { return reactions_->deleteBefore(cutoff); });
+    log_->info("Deleted {} per-day reaction rows before {}", deleted, cutoff.toString());
+    return deleted;
+}
+
+ReactionService::BufferStats ReactionService::bufferStats() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return {buffer_.size(), maxBuffered_, dropped_.load()};
+}
+
 }  // namespace caelitus::catalog

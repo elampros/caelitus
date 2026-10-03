@@ -7,6 +7,7 @@
 #include "caelitus/core/DateTime.hpp"
 
 #include <chrono>
+#include <optional>
 #include <string>
 
 namespace caelitus {
@@ -35,6 +36,16 @@ public:
     std::chrono::minutes offsetAt(Timestamp ts) const;
     /// The local calendar date at `ts`.
     Date localDate(Timestamp ts) const;
+    /// The local calendar date and time of day at `ts`.
+    DateTimeParts toLocal(Timestamp ts) const;
+
+    /// The UTC instant of a local date and time.
+    ///
+    /// On the day clocks go back, a local time between 03:00 and 04:00
+    /// (Athens) happens twice; the first occurrence is returned. On the day
+    /// clocks go forward, local times in the skipped hour do not exist.
+    /// @return std::nullopt for a skipped local time.
+    std::optional<Timestamp> toUtc(const DateTimeParts& local) const;
 
 private:
     TimeZone(std::string name, std::chrono::minutes standardOffset, bool euDst)

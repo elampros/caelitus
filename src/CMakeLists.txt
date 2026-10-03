@@ -2,20 +2,21 @@
 # Technology-specific code (MariaDB, libmosquitto) lives in its own library,
 # so the catalog services cannot even link against a database driver:
 #
-#   log, core, json, cache
+#   log, core, json, cache, scheduler
 #     <- db, mqtt, net                       (abstractions)
 #     <- db_mariadb, mqtt_mosquitto          (drivers)
 #     <- catalog                             (domain + services; db/mqtt interfaces only)
 #     <- catalog_mariadb                     (repositories + schema migrations)
 #     <- api, config
-#     <- caelitus                            (the executable: wires everything)
+#     <- app                                 (Application, HealthMonitor: wires everything)
+#     <- caelitus                            (the executable: main)
 
 caelitus_module(log
         SOURCES log/Log.cpp
         PUBLIC spdlog::spdlog)
 
 caelitus_module(core
-        SOURCES core/DateTime.cpp core/PeriodicTask.cpp core/TimeZone.cpp
+        SOURCES core/DateTime.cpp core/TimeZone.cpp
         PUBLIC caelitus::log Threads::Threads)
 
 caelitus_module(json
@@ -23,6 +24,10 @@ caelitus_module(json
 
 caelitus_module(cache
         PUBLIC Threads::Threads)
+
+caelitus_module(scheduler
+        SOURCES scheduler/Schedule.cpp scheduler/Scheduler.cpp
+        PUBLIC caelitus::core caelitus::log Threads::Threads)
 
 # ---- database --------------------------------------------------------------------
 caelitus_module(db
@@ -85,20 +90,26 @@ caelitus_module(api
         api/JsonRpc.cpp
         api/MqttReactionListener.cpp
         api/OpenRpc.cpp
+        api/OperationsApi.cpp
         api/SchemaValidator.cpp
-        PUBLIC caelitus::catalog caelitus::json caelitus::net caelitus::mqtt)
+        PUBLIC caelitus::catalog caelitus::json caelitus::net caelitus::mqtt caelitus::scheduler)
 
 caelitus_module(config
         SOURCES config/AppConfig.cpp
         PUBLIC caelitus::db caelitus::mqtt caelitus::net caelitus::log
-        PRIVATE caelitus::json)
+        PRIVATE caelitus::json caelitus::scheduler)
 
 # ---- the server ----------------------------------------------------------------
-add_executable(caelitus app/main.cpp app/Application.cpp)
+# The wiring (Application, HealthMonitor) is a library of its own, so the
+# end-to-end tests can start the real server in-process.
+caelitus_module(app
+        SOURCES app/Application.cpp app/HealthMonitor.cpp
+        PUBLIC caelitus::config caelitus::api caelitus::catalog_mariadb caelitus::db_mariadb caelitus::mqtt_mosquitto
+        caelitus::scheduler)
+
+add_executable(caelitus app/main.cpp)
 target_include_directories(caelitus PRIVATE ${PROJECT_SOURCE_DIR}/src)
-target_link_libraries(caelitus PRIVATE
-        caelitus::config caelitus::api caelitus::catalog_mariadb caelitus::db_mariadb caelitus::mqtt_mosquitto
-        caelitus_build_options)
+target_link_libraries(caelitus PRIVATE caelitus::app caelitus_build_options)
 
 # Regenerate the committed API description and database schema:
 #   cmake --build <dir> --target openrpc      -> docs/openrpc.json

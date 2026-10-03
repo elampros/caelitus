@@ -11,9 +11,11 @@
 #include "caelitus/db/SqlExecutor.hpp"
 #include "caelitus/log/Log.hpp"
 #include "caelitus/mqtt/IMqttClient.hpp"
+#include "caelitus/scheduler/Scheduler.hpp"
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace caelitus::app {
 
@@ -25,10 +27,14 @@ namespace caelitus::app {
 /// |------------------------------------------------|-------------------------------------------------|
 /// | MQTT client (background reconnects)            | MQTT client (publishes "offline")               |
 /// | MariaDB pool, migrations                       | final flush of buffered likes                   |
-/// | book cache + periodic reload                   | cache reload task                               |
-/// | catalog services                               | flush task                                      |
-/// | MQTT like/dislike listener + flush task        | MQTT listener (no new likes)                    |
+/// | book cache, catalog services                   | scheduler (waits for running jobs)              |
+/// | MQTT like/dislike listener                     | MQTT listener (no new likes)                    |
+/// | first health check                             |                                                 |
 /// | JSON-RPC handler + TCP server                  | TCP server (in-flight requests finish)          |
+/// | scheduler with every job                       |                                                 |
+///
+/// Periodic work runs as named jobs on a scheduler::Scheduler; see
+/// defineJobs() in Application.cpp for the list, and add new jobs there.
 ///
 /// The MQTT client starts first so that a broker outage never blocks startup
 /// (the server keeps working; likes resume when the broker returns), while
@@ -46,6 +52,7 @@ public:
     Application& operator=(const Application&) = delete;
 
     /// Starts every component.
+    /// @throws ConfigError for a job in "scheduler.jobs" that does not exist.
     /// @throws db::DatabaseError if the database cannot be reached or migrated.
     /// @throws net::NetError if the TCP port cannot be bound.
     void start();
@@ -58,8 +65,16 @@ public:
     /// The TCP port the server listens on (useful with port 0 in tests).
     std::uint16_t port() const;
 
+    /// The scheduler running the periodic jobs (null before start()). Other
+    /// parts of the application may add() their own jobs to it.
+    std::shared_ptr<scheduler::Scheduler> scheduler() const;
+
 private:
     struct Components;
+
+    /// Every periodic job with its defaults, the configuration applied.
+    /// @throws ConfigError for an unknown job name in "scheduler.jobs".
+    static std::vector<scheduler::JobSpec> defineJobs(Components& c, const AppConfig& config);
 
     AppConfig config_;
     log::Logger log_;

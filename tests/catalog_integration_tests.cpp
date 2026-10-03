@@ -442,6 +442,23 @@ TEST(reaction_periods_and_rankings) {
     CHECK(!c.reactions.record(meh, Reaction::Like));  // and no longer accepted
 }
 
+TEST(old_daily_reactions_are_deleted_in_sql) {
+    Catalog c;
+    auto cat = c.categories.create("Cleanup").id;
+    auto a = c.authors.create({"Y", std::nullopt, std::nullopt}).id;
+    auto b = c.book("Old news", Date(1990, 1, 1), cat, {a}).id;
+    c.now = fromParts({Date(2024, 6, 1), 12, 0, 0, 0});
+    react(c, b, 4, 1);
+    c.reactions.flush();
+    c.now = fromParts({Date(2026, 6, 1), 12, 0, 0, 0});
+    react(c, b, 2, 0);
+    c.reactions.flush();
+    CHECK_EQ(c.reactions.deleteOlderThan(400), 1);
+    CHECK_EQ(c.sql->queryScalar<int>("SELECT COUNT(*) FROM book_reactions_daily WHERE book_id = ?", {b.value}).value(),
+             1);
+    CHECK_EQ(c.books.get(b).likes, 6);  // all-time totals stay on the book
+}
+
 TEST(reaction_batches_larger_than_one_statement) {
     Catalog c;
     auto cat = c.categories.create("Misc").id;

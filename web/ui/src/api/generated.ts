@@ -88,6 +88,84 @@ export type Category = {
   slug: string;
 };
 
+export type HealthReport = {
+  bookCache: {
+    /** Estimated memory use */
+    approxBytes: number;
+    books: number;
+    hits: number;
+    misses: number;
+  };
+  checkedAt: string;
+  database: {
+    idleConnections: number;
+    maxConnections: number;
+    openConnections: number;
+    pingMs: number | null;
+    up: boolean;
+  };
+  jobs: {
+    failing: number;
+    paused: number;
+    running: number;
+    total: number;
+  };
+  mqtt: {
+    connected: boolean;
+    publishDropped: number;
+    published: number;
+    receiveDropped: number;
+    received: number;
+  };
+  /** What is wrong, one sentence each */
+  problems: string[];
+  process: {
+    /** Resident memory (RSS) */
+    memoryBytes: number | null;
+    threads: number | null;
+  };
+  reactions: {
+    capacity: number;
+    dropped: number;
+    /** Book-days waiting for the next flush */
+    pending: number;
+  };
+  server: {
+    activeConnections: number;
+    handlerErrors: number;
+    protocolErrors: number;
+    requests: number;
+    totalConnections: number;
+  };
+  /** degraded when problems is not empty */
+  status: "ok" | "degraded";
+  uptimeSeconds: number;
+  version: string;
+};
+
+export type Job = {
+  /** Failures since the last success */
+  consecutiveFailures: number;
+  description: string;
+  failures: number;
+  lastDurationMs: number | null;
+  lastEnd: string | null;
+  /** Message of the last failure */
+  lastError: string | null;
+  lastResult: "never" | "ok" | "failed";
+  lastStart: string | null;
+  /** Unique job name */
+  name: string;
+  /** Next planned start; null while paused or running */
+  nextRun: string | null;
+  /** Paused jobs only run when started by hand */
+  paused: boolean;
+  running: boolean;
+  runs: number;
+  /** e.g. "every 15s", "cron 0 3 * * * (Europe/Athens)" */
+  schedule: string;
+};
+
 export type RankedBook = {
   /** Positive integer id */
   bookId: number;
@@ -447,6 +525,48 @@ export interface Methods {
   "rpc.discover": {
     params: Record<string, never>;
     result: Record<string, unknown>;
+  };
+  /** One scheduled job. */
+  "scheduler.get": {
+    params: {
+      /** Job name */
+      name: string;
+    };
+    result: Job;
+  };
+  /** Every scheduled job with its state and history. */
+  "scheduler.list": {
+    params: Record<string, never>;
+    result: Job[];
+  };
+  /** Stops a job's scheduled runs. */
+  "scheduler.pause": {
+    params: {
+      /** Job name */
+      name: string;
+    };
+    result: Job;
+  };
+  /** Resumes a paused job. */
+  "scheduler.resume": {
+    params: {
+      /** Job name */
+      name: string;
+    };
+    result: Job;
+  };
+  /** Runs a job now. */
+  "scheduler.run": {
+    params: {
+      /** Job name */
+      name: string;
+    };
+    result: Job;
+  };
+  /** The server's latest health report. */
+  "system.health": {
+    params: Record<string, never>;
+    result: HealthReport;
   };
   /** Liveness check. */
   "system.ping": {

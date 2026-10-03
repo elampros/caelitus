@@ -53,12 +53,21 @@ public:
         : DomainError("not_found", entity + " " + std::to_string(id) + " not found"),
           entity_(std::move(entity)),
           id_(id) {}
-    const std::string& entity() const noexcept { return entity_; }  ///< "book", "author", ...
-    std::int64_t id() const noexcept { return id_; }                ///< The id that was looked up.
+    /// For entities identified by name rather than id, e.g. a scheduled job.
+    /// @param entity  "job", ...
+    /// @param name    The name that was looked up.
+    NotFoundError(std::string entity, const std::string& name)
+        : DomainError("not_found", entity + " '" + name + "' not found"),
+          entity_(std::move(entity)),
+          name_(name) {}
+    const std::string& entity() const noexcept { return entity_; }  ///< "book", "author", "job", ...
+    std::int64_t id() const noexcept { return id_; }                ///< The id that was looked up; 0 for names.
+    const std::string& name() const noexcept { return name_; }      ///< The name that was looked up; empty for ids.
 
 private:
     std::string entity_;
-    std::int64_t id_;
+    std::int64_t id_ = 0;
+    std::string name_;
 };
 
 /// The request is valid but clashes with the current state: a duplicate ISBN,

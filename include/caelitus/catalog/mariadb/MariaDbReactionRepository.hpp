@@ -25,6 +25,7 @@ public:
     std::int64_t add(const std::vector<DailyReactions>& deltas) override;
     std::vector<ReactionCounts> counts(BookId book, const std::vector<std::optional<DateRange>>& ranges) override;
     std::vector<RankedBook> top(const std::optional<DateRange>& range, ReactionOrder order, int limit) override;
+    std::int64_t deleteBefore(const Date& day) override;
 
 private:
     std::shared_ptr<db::SqlExecutor> sql_;

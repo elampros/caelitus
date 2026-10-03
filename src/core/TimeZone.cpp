@@ -49,4 +49,20 @@ std::chrono::minutes TimeZone::offsetAt(Timestamp ts) const {
 
 Date TimeZone::localDate(Timestamp ts) const { return toParts(ts + offsetAt(ts)).date; }
 
+DateTimeParts TimeZone::toLocal(Timestamp ts) const { return toParts(ts + offsetAt(ts)); }
+
+std::optional<Timestamp> TimeZone::toUtc(const DateTimeParts& local) const {
+    const Timestamp asUtc = fromParts(local);
+    // A local time is valid for an offset if, at the resulting instant, that
+    // offset is the one in force. Try the summer offset first: it gives the
+    // earlier instant when a local time occurs twice.
+    const std::chrono::minutes candidates[] = {standardOffset_ + std::chrono::minutes(euDst_ ? 60 : 0),
+                                               standardOffset_};
+    for (const auto offset : candidates) {
+        const Timestamp utc = asUtc - offset;
+        if (offsetAt(utc) == offset) return utc;
+    }
+    return std::nullopt;
+}
+
 }  // namespace caelitus

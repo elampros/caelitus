@@ -257,6 +257,27 @@ TEST(local_date_crosses_midnight_before_utc) {
     CHECK(TimeZone::named("Europe/London").localDate(fromParts({Date(2026, 7, 1), 23, 30, 0, 0})) == Date(2026, 7, 2));
 }
 
+TEST(local_times_convert_to_utc_across_summer_time_changes) {
+    const TimeZone athens = TimeZone::named("Europe/Athens");
+    auto local = [](unsigned mo, unsigned d, unsigned h, unsigned mi) -> DateTimeParts {
+        return {Date(2026, mo, d), h, mi, 0, 0};
+    };
+    auto utc = [](unsigned mo, unsigned d, unsigned h, unsigned mi) {
+        return fromParts({Date(2026, mo, d), h, mi, 0, 0});
+    };
+    CHECK(athens.toUtc(local(7, 1, 12, 0)) == utc(7, 1, 9, 0));   // summer, UTC+3
+    CHECK(athens.toUtc(local(1, 15, 3, 0)) == utc(1, 15, 1, 0));  // winter, UTC+2
+    // 29 March: 03:00 local jumps to 04:00, so 03:30 does not exist.
+    CHECK(!athens.toUtc(local(3, 29, 3, 30)));
+    CHECK(athens.toUtc(local(3, 29, 4, 0)) == utc(3, 29, 1, 0));
+    // 25 October: 04:00 local goes back to 03:00, so 03:30 happens twice; the first wins.
+    CHECK(athens.toUtc(local(10, 25, 3, 30)) == utc(10, 25, 0, 30));
+    // Round trip.
+    const Timestamp t = utc(10, 25, 1, 30);
+    CHECK(athens.toUtc(athens.toLocal(t)) == utc(10, 25, 0, 30));  // the earlier 03:30
+    CHECK(TimeZone::utc().toUtc(local(5, 5, 5, 5)) == utc(5, 5, 5, 5));
+}
+
 TEST(unknown_time_zone_is_rejected) {
     CHECK_THROWS_AS(TimeZone::named("America/New_York"), std::invalid_argument);
     CHECK_THROWS_AS(TimeZone::named("Athens"), std::invalid_argument);

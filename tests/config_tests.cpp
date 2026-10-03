@@ -187,6 +187,58 @@ TEST(wrong_types_and_ranges_are_rejected) {
                 "db.transaction.backoffMultiplier");
 }
 
+TEST(scheduler_and_health_sections_are_read) {
+    std::string json = kMinimal;
+    json.insert(json.size() - 2, R"(,
+  "catalog": { "timeZone": "Europe/Athens", "reactions": { "keepDays": 500, "topTopic": "stats/top" } },
+  "scheduler": { "threads": 3, "jobs": {
+    "health": { "schedule": "every 30s", "timeoutSec": 5 },
+    "reaction-cleanup": { "schedule": "cron 15 4 * * sun", "enabled": false, "retryAttempts": 2, "retryDelaySec": 60, "jitterSec": 10 }
+  } },
+  "health": { "slowDatabaseMs": 250, "maxMemoryMb": 512, "reactionBufferWarnPercent": 90 })");
+    auto c = AppConfig::fromJson(json);
+    CHECK_EQ(c.scheduler.threads, 3u);
+    CHECK_EQ(c.scheduler.jobs.size(), 2u);
+    const auto& h = c.scheduler.jobs.at("health");
+    CHECK(h.schedule == std::string("every 30s"));
+    CHECK(h.timeout == std::chrono::milliseconds(5000));
+    CHECK(!h.enabled && !h.retryAttempts);  // unset: the job's default applies
+    const auto& cleanup = c.scheduler.jobs.at("reaction-cleanup");
+    CHECK(cleanup.enabled == false);
+    CHECK(cleanup.retryAttempts == 2);
+    CHECK(cleanup.retryDelay == std::chrono::milliseconds(60000));
+    CHECK(cleanup.jitter == std::chrono::milliseconds(10000));
+    CHECK_EQ(c.catalog.reactionKeepDays, 500);
+    CHECK_EQ(c.catalog.topBooksTopic, "stats/top");
+    CHECK(c.health.slowDatabase == std::chrono::milliseconds(250));
+    CHECK_EQ(c.health.maxMemoryMb, 512u);
+    CHECK_EQ(c.health.reactionBufferWarnPercent, 90);
+
+    auto d = AppConfig::fromJson(kMinimal);  // defaults
+    CHECK_EQ(d.scheduler.threads, 2u);
+    CHECK(d.scheduler.jobs.empty());
+    CHECK_EQ(d.catalog.reactionKeepDays, 400);
+}
+
+TEST(scheduler_settings_are_validated) {
+    auto with = [](const std::string& section) {
+        std::string json = kMinimal;
+        return json.insert(json.size() - 2, ",\n  " + section);
+    };
+    expectError(with(R"("scheduler": { "jobs": { "health": { "schedule": "every 15" } } })"),
+                "scheduler.jobs.health.schedule: schedule 'every 15'");
+    expectError(with(R"("scheduler": { "jobs": { "health": { "schedule": "cron 99 * * * *" } } })"),
+                "scheduler.jobs.health.schedule");
+    expectError(with(R"("scheduler": { "jobs": { "health": { "every": "15s" } } })"),
+                "scheduler.jobs.health.every: unknown key");
+    expectError(with(R"("scheduler": { "threads": 0 })"), "scheduler.threads");
+    expectError(with(R"("scheduler": { "jobs": { "health": 5 } })"), "scheduler.jobs.health: must be an object");
+    expectError(with(R"("catalog": { "reactions": { "keepDays": 30 } })"), "catalog.reactions.keepDays");
+    expectError(with(R"("health": { "reactionBufferWarnPercent": 0 })"), "health.reactionBufferWarnPercent");
+    expectError(with(R"("catalog": { "reactions": { "flushIntervalMs": 1000 } })"),
+                "catalog.reactions.flushIntervalMs: unknown key");  // moved to scheduler.jobs.reaction-flush
+}
+
 TEST(log_levels_are_validated) {
     expectError(R"({ "mqtt": { "server": "b" }, "db": { "user": "u", "database": "d" },
                      "server": { "port": 1, "log": "verbose" } })",

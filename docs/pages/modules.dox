@@ -9,14 +9,13 @@ loop from flooding the log.
 
 Library: `caelitus::log`. Depends on: spdlog.
 
-@defgroup core core: dates, time zones, errors, periodic tasks
+@defgroup core core: dates, time zones, errors
 @brief Small building blocks used by every other module.
 
 - Timestamp, Date and the ISO 8601 / RFC 3339 conversions;
 - TimeZone, which knows the EU daylight saving rule;
 - the domain error hierarchy (DomainError and its subclasses) that services
-  throw and the API layer maps to JSON-RPC errors;
-- PeriodicTask, a thread that runs a function on a schedule.
+  throw and the API layer maps to JSON-RPC errors.
 
 Library: `caelitus::core`. Depends on: @ref log.
 
@@ -33,6 +32,18 @@ writers in ahead of new readers (cache::WriterPreferringMutex). It has no
 expiry or size bound: its owner decides what is in it (see catalog::BookCache).
 
 Header-only. Library: `caelitus::cache`.
+
+@defgroup scheduler scheduler: periodic jobs
+@brief Named jobs on schedules ("every 15s", "rate 1s", cron), with status, pause/resume and manual runs.
+
+scheduler::Scheduler runs jobs on one timer thread and a small worker pool; a
+job never overlaps itself. scheduler::Schedule parses the schedule texts used
+in the configuration, and scheduler::CronExpression evaluates cron expressions
+in a local time zone, across summer-time changes. Knows nothing about the
+catalog: the application defines its jobs in app::Application, and the API
+exposes them as scheduler.* methods.
+
+Library: `caelitus::scheduler`. Depends on: @ref core, @ref log.
 
 @defgroup db db: database access
 @brief Database access that knows no particular database.
@@ -108,17 +119,23 @@ Library: `caelitus::catalog_mariadb`. Depends on: @ref catalog, @ref db.
 - api::registerCatalogApi() declares every catalog method;
 - api::openRpcDocument() describes them as an OpenRPC document;
 - api::MqttReactionListener turns MQTT like/dislike messages into calls to
-  catalog::ReactionService.
+  catalog::ReactionService;
+- api::registerOperationsApi() exposes the scheduled jobs (scheduler.*) and the
+  health report (system.health).
 
-Library: `caelitus::api`. Depends on: @ref catalog, @ref json, @ref net, @ref mqtt.
+Library: `caelitus::api`. Depends on: @ref catalog, @ref json, @ref net, @ref mqtt, @ref scheduler.
 
 @defgroup config config: configuration
 @brief Loads and validates `config.json`, with `${ENV_VAR}` substitution.
 
 Library: `caelitus::config`. Depends on: @ref db, @ref mqtt, @ref net, @ref log, @ref json.
 
-@defgroup app app: the server executable
-@brief `main()` and app::Application, which creates, wires, starts and stops every component.
+@defgroup app app: the server
+@brief `main()`; app::Application, which creates, wires, starts and stops every
+component and defines the scheduled jobs; app::HealthMonitor, the "health" job.
+
+Library: `caelitus::app` (so the end-to-end tests can run the real server), plus
+the `caelitus` executable (`main.cpp`).
 */
 
 /// @namespace caelitus
@@ -150,6 +167,9 @@ Library: `caelitus::config`. Depends on: @ref db, @ref mqtt, @ref net, @ref log,
 
 /// @namespace caelitus::api
 /// JSON-RPC API; see @ref api.
+
+/// @namespace caelitus::scheduler
+/// Periodic jobs; see @ref scheduler.
 
 /// @namespace caelitus::app
 /// The server executable; see @ref app.

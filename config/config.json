@@ -54,11 +54,34 @@
 
   "catalog": {
     "timeZone": "Europe/Athens",
-    "bookCacheReloadSec": 300,
     "reactions": {
       "topicPrefix": "catalog/in/books",
-      "flushIntervalMs": 1000
+      "keepDays": 400,                       // per-day like counts kept; all-time totals are never deleted
+      "topTopic": "catalog/stats/top-today"  // where the "top-books" job publishes
     }
+  },
+
+  // Periodic jobs. Every job has a built-in default; list a job here only to
+  // change it. Schedules: "every 15s", "rate 1s", "cron 0 3 * * *" (in
+  // catalog.timeZone). Per job: schedule, enabled, timeoutSec, jitterSec,
+  // retryAttempts, retryDelaySec. Jobs: reaction-flush, book-cache-reload,
+  // health, reaction-cleanup, top-books (see README, "Scheduled jobs").
+  "scheduler": {
+    "threads": 2,
+    "jobs": {
+      "reaction-flush": { "schedule": "rate 1s" },
+      "book-cache-reload": { "schedule": "every 5min" },
+      "health": { "schedule": "every 15s" },
+      "reaction-cleanup": { "schedule": "cron 0 3 * * *" },
+      "top-books": { "schedule": "every 1min" }
+    }
+  },
+
+  // Thresholds of the "health" job; a problem is logged as a warning.
+  "health": {
+    "slowDatabaseMs": 500,
+    "maxMemoryMb": 0,                 // 0: memory not checked
+    "reactionBufferWarnPercent": 80
   },
 
   "log": {

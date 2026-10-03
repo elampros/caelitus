@@ -394,6 +394,18 @@ public:
         return out;
     }
 
+    std::int64_t deleteBefore(const Date& day) override {
+        std::int64_t n = 0;
+        for (auto it = s_.dailyReactions.begin(); it != s_.dailyReactions.end();)
+            if (it->first.second < day.toDays()) {
+                it = s_.dailyReactions.erase(it);
+                ++n;
+            } else {
+                ++it;
+            }
+        return n;
+    }
+
 private:
     ReactionCounts sum(std::int64_t book, const std::optional<DateRange>& range) const {
         if (!range) return s_.reactionTotals.count(book) ? s_.reactionTotals.at(book) : ReactionCounts{};

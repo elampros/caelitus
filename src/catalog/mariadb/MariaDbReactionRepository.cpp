@@ -156,4 +156,15 @@ std::vector<RankedBook> MariaDbReactionRepository::top(const std::optional<DateR
         {range->from, range->to, limit}, toRanked);
 }
 
+std::int64_t MariaDbReactionRepository::deleteBefore(const Date& day) {
+    // Uses the index on `day`; deletes in chunks so one run never holds locks for long.
+    std::int64_t total = 0;
+    while (true) {
+        const auto n = static_cast<std::int64_t>(
+            sql_->execute("DELETE FROM book_reactions_daily WHERE day < ? LIMIT 10000", {day}).affectedRows);
+        total += n;
+        if (n < 10000) return total;
+    }
+}
+
 }  // namespace caelitus::catalog::mariadb

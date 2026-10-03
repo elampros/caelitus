@@ -21,8 +21,8 @@
         "code": -32001,
         "data": {
           "code": "not_found",
-          "entity": "book, author, ...",
-          "id": "the id that was not found"
+          "entity": "book, author, ..., job",
+          "id": "the id (or, for jobs, the name) that was not found"
         },
         "message": "Not found"
       },
@@ -423,6 +423,388 @@
         ],
         "type": "object"
       },
+      "HealthReport": {
+        "additionalProperties": false,
+        "properties": {
+          "bookCache": {
+            "additionalProperties": false,
+            "properties": {
+              "approxBytes": {
+                "description": "Estimated memory use",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "books": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "hits": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "misses": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "books",
+              "approxBytes",
+              "hits",
+              "misses"
+            ],
+            "type": "object"
+          },
+          "checkedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "database": {
+            "additionalProperties": false,
+            "properties": {
+              "idleConnections": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "maxConnections": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "openConnections": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "pingMs": {
+                "oneOf": [
+                  {
+                    "minimum": 0.0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "up": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "up",
+              "pingMs",
+              "openConnections",
+              "idleConnections",
+              "maxConnections"
+            ],
+            "type": "object"
+          },
+          "jobs": {
+            "additionalProperties": false,
+            "properties": {
+              "failing": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "paused": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "running": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "total": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "total",
+              "paused",
+              "running",
+              "failing"
+            ],
+            "type": "object"
+          },
+          "mqtt": {
+            "additionalProperties": false,
+            "properties": {
+              "connected": {
+                "type": "boolean"
+              },
+              "publishDropped": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "published": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "receiveDropped": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "received": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "connected",
+              "published",
+              "publishDropped",
+              "received",
+              "receiveDropped"
+            ],
+            "type": "object"
+          },
+          "problems": {
+            "description": "What is wrong, one sentence each",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "process": {
+            "additionalProperties": false,
+            "properties": {
+              "memoryBytes": {
+                "description": "Resident memory (RSS)",
+                "oneOf": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "threads": {
+                "oneOf": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "memoryBytes",
+              "threads"
+            ],
+            "type": "object"
+          },
+          "reactions": {
+            "additionalProperties": false,
+            "properties": {
+              "capacity": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "dropped": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "pending": {
+                "description": "Book-days waiting for the next flush",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "pending",
+              "capacity",
+              "dropped"
+            ],
+            "type": "object"
+          },
+          "server": {
+            "additionalProperties": false,
+            "properties": {
+              "activeConnections": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "handlerErrors": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "protocolErrors": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "requests": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "totalConnections": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "activeConnections",
+              "totalConnections",
+              "requests",
+              "handlerErrors",
+              "protocolErrors"
+            ],
+            "type": "object"
+          },
+          "status": {
+            "description": "degraded when problems is not empty",
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "type": "string"
+          },
+          "uptimeSeconds": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "problems",
+          "checkedAt",
+          "uptimeSeconds",
+          "version",
+          "database",
+          "mqtt",
+          "bookCache",
+          "server",
+          "reactions",
+          "process",
+          "jobs"
+        ],
+        "type": "object"
+      },
+      "Job": {
+        "additionalProperties": false,
+        "properties": {
+          "consecutiveFailures": {
+            "description": "Failures since the last success",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": {
+            "type": "string"
+          },
+          "failures": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "lastDurationMs": {
+            "oneOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastEnd": {
+            "oneOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastError": {
+            "description": "Message of the last failure",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastResult": {
+            "enum": [
+              "never",
+              "ok",
+              "failed"
+            ],
+            "type": "string"
+          },
+          "lastStart": {
+            "oneOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "description": "Unique job name",
+            "minLength": 1,
+            "type": "string"
+          },
+          "nextRun": {
+            "description": "Next planned start; null while paused or running",
+            "oneOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "paused": {
+            "description": "Paused jobs only run when started by hand",
+            "type": "boolean"
+          },
+          "running": {
+            "type": "boolean"
+          },
+          "runs": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "schedule": {
+            "description": "e.g. \"every 15s\", \"cron 0 3 * * * (Europe/Athens)\"",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "schedule",
+          "paused",
+          "running",
+          "nextRun",
+          "lastStart",
+          "lastEnd",
+          "lastDurationMs",
+          "lastResult",
+          "lastError",
+          "runs",
+          "failures",
+          "consecutiveFailures"
+        ],
+        "type": "object"
+      },
       "RankedBook": {
         "additionalProperties": false,
         "properties": {
@@ -703,6 +1085,9 @@
       },
       "reviews": {
         "name": "reviews"
+      },
+      "scheduler": {
+        "name": "scheduler"
       },
       "system": {
         "name": "system"
@@ -2192,6 +2577,221 @@
         }
       },
       "summary": "Returns this API's OpenRPC description.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/system"
+        }
+      ]
+    },
+    {
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "scheduler.get",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Job name",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "description": "Job name, as listed by scheduler.list",
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "job",
+        "schema": {
+          "$ref": "#/components/schemas/Job"
+        }
+      },
+      "summary": "One scheduled job.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/scheduler"
+        }
+      ]
+    },
+    {
+      "description": "Jobs run inside the server on schedules from the configuration (scheduler.jobs).",
+      "errors": [
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "scheduler.list",
+      "paramStructure": "by-name",
+      "params": [],
+      "result": {
+        "name": "jobs",
+        "schema": {
+          "items": {
+            "$ref": "#/components/schemas/Job"
+          },
+          "type": "array"
+        }
+      },
+      "summary": "Every scheduled job with its state and history.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/scheduler"
+        }
+      ]
+    },
+    {
+      "description": "A run in progress finishes. Not persisted: after a restart the configuration decides.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "scheduler.pause",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Job name",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "description": "Job name, as listed by scheduler.list",
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "job",
+        "schema": {
+          "$ref": "#/components/schemas/Job"
+        }
+      },
+      "summary": "Stops a job's scheduled runs.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/scheduler"
+        }
+      ]
+    },
+    {
+      "description": "Its next run is planned from now.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "scheduler.resume",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Job name",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "description": "Job name, as listed by scheduler.list",
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "job",
+        "schema": {
+          "$ref": "#/components/schemas/Job"
+        }
+      },
+      "summary": "Resumes a paused job.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/scheduler"
+        }
+      ]
+    },
+    {
+      "description": "Also while the job is paused; its regular schedule is not changed. The run starts in the background: the result shows running = true, and scheduler.get shows the outcome.\n\nConflict error data.code values: job_running.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/InvalidParams"
+        },
+        {
+          "$ref": "#/components/errors/NotFound"
+        },
+        {
+          "$ref": "#/components/errors/Conflict"
+        },
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "scheduler.run",
+      "paramStructure": "by-name",
+      "params": [
+        {
+          "description": "Job name",
+          "name": "name",
+          "required": true,
+          "schema": {
+            "description": "Job name, as listed by scheduler.list",
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      ],
+      "result": {
+        "name": "job",
+        "schema": {
+          "$ref": "#/components/schemas/Job"
+        }
+      },
+      "summary": "Runs a job now.",
+      "tags": [
+        {
+          "$ref": "#/components/tags/scheduler"
+        }
+      ]
+    },
+    {
+      "description": "Made by the \"health\" job (default every 15 s): database, MQTT, book cache, TCP server, like buffer, memory, threads and jobs, with a list of problems. Unavailable until the first check after startup.",
+      "errors": [
+        {
+          "$ref": "#/components/errors/Unavailable"
+        }
+      ],
+      "name": "system.health",
+      "paramStructure": "by-name",
+      "params": [],
+      "result": {
+        "name": "health",
+        "schema": {
+          "$ref": "#/components/schemas/HealthReport"
+        }
+      },
+      "summary": "The server's latest health report.",
       "tags": [
         {
           "$ref": "#/components/tags/system"

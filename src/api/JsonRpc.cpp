@@ -131,7 +131,9 @@ Json JsonRpcHandler::invoke(const Method& method, const Json& params, const Json
         return errorResponse(id, errors::kInvalidParams, e.what(), {{"code", e.code()}, {"field", e.field()}});
     } catch (const NotFoundError& e) {
         return errorResponse(id, errors::kNotFound, e.what(),
-                             {{"code", e.code()}, {"entity", e.entity()}, {"id", e.id()}});
+                             {{"code", e.code()},
+                              {"entity", e.entity()},
+                              {"id", e.name().empty() ? Json(e.id()) : Json(e.name())}});
     } catch (const ConflictError& e) {
         return errorResponse(id, errors::kConflict, e.what(), {{"code", e.code()}});
     } catch (const db::DatabaseError& e) {

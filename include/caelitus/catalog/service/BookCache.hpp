@@ -53,6 +53,9 @@ public:
     using Stats = cache::LocalCache<std::int64_t, BookBrief>::Stats;  ///< Size and hit/miss counters.
     /// Size and hit/miss counters.
     Stats stats() const { return cache_.stats(); }
+    /// Estimated memory use in bytes: entries, titles and hash-table overhead.
+    /// Walks every entry, so call it occasionally (the health job does, every 15 s).
+    std::size_t approxBytes() const;
 
 private:
     void markDirty(BookId id);

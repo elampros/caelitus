@@ -15,7 +15,7 @@ RUN git clone --depth 1 --branch "${CONNCPP_VERSION}" \
         https://github.com/mariadb-corporation/mariadb-connector-cpp.git /src/conncpp \
     && cmake -S /src/conncpp -B /src/conncpp/build -DCMAKE_BUILD_TYPE=Release \
         -DUSE_SYSTEM_INSTALLED_LIB=ON -DWITH_UNIT_TESTS=OFF -DCMAKE_INSTALL_PREFIX=/usr/local \
-    && cmake --build /src/conncpp/build -j"$(nproc)" \
+    && cmake --build /src/conncpp/build -j3 \
     && cmake --install /src/conncpp/build
 
 COPY CMakeLists.txt CMakePresets.json /src/caelitus/
@@ -24,7 +24,7 @@ COPY include /src/caelitus/include
 COPY src /src/caelitus/src
 COPY docs/CMakeLists.txt /src/caelitus/docs/CMakeLists.txt
 RUN cmake -S /src/caelitus -B /src/caelitus/build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
-    && cmake --build /src/caelitus/build -j"$(nproc)" --target caelitus \
+    && cmake --build /src/caelitus/build -j3 --target caelitus \
     && strip /src/caelitus/build/src/caelitus \
     && mkdir -p /out/lib \
     && cp -P $(find /usr/local/lib* -name 'libmariadbcpp.so*') /out/lib/

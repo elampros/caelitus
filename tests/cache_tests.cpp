@@ -24,6 +24,14 @@ TEST(local_cache_basics) {
     c.erase(1);
     CHECK(!c.get(1).has_value());
     c.replaceAll({{2, "two"}, {3, "three"}});
+    int keys = 0;
+    std::size_t chars = 0;
+    c.forEach([&](const int& k, const std::string& v) {
+        keys += k;
+        chars += v.size();
+    });
+    CHECK_EQ(keys, 5);
+    CHECK_EQ(chars, 8u);
     auto s = c.stats();
     CHECK_EQ(s.size, 2u);
     CHECK_EQ(s.hits, 2u);
@@ -127,6 +135,19 @@ TEST(book_cache_forgets_deleted_books_on_refresh) {
     cache.refresh(BookId(1));
     CHECK(!cache.get(BookId(1)).has_value());
     CHECK(!cache.reactionsEnabled(BookId(1)));
+}
+
+TEST(book_cache_estimates_its_memory) {
+    auto repo = std::make_shared<BriefsOnly>();
+    BookCache empty(repo);
+    CHECK_EQ(empty.approxBytes(), 0u);
+    repo->rows[1] = {BookId(1), "Dune", true};
+    repo->rows[2] = {BookId(2), std::string(200, 'x'), true};  // a long title has its own heap buffer
+    BookCache cache(repo);
+    cache.reload();
+    const std::size_t bytes = cache.approxBytes();
+    CHECK(bytes >= 2 * sizeof(BookBrief) + 200);
+    CHECK(bytes < 2000u);
 }
 
 int main() { return test::runAll(); }

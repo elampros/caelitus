@@ -1,21 +1,16 @@
-// End to end: the application's wiring in-process, a real MariaDB, a real
-// MQTT broker and JSON-RPC over a real TCP socket. Skipped (exit 0) unless
+// End to end: the real application (app::Application) in-process, a real
+// MariaDB, a real MQTT broker and JSON-RPC over a real TCP socket. Skipped (exit 0) unless
 // both CAELITUS_TEST_DB_HOST and CAELITUS_TEST_MQTT_HOST are set.
 
 #include "TestHarness.hpp"
 
-#include "caelitus/api/CatalogApi.hpp"
+#include "app/Application.hpp"
 #include "caelitus/api/JsonRpc.hpp"
-#include "caelitus/api/MqttReactionListener.hpp"
-#include "caelitus/catalog/mariadb/CatalogMigrations.hpp"
-#include "caelitus/catalog/mariadb/MariaDbReactionRepository.hpp"
-#include "caelitus/catalog/mariadb/MariaDbRepositories.hpp"
-#include "caelitus/core/PeriodicTask.hpp"
-#include "caelitus/db/TransactionManager.hpp"
+#include "caelitus/db/ConnectionPool.hpp"
 #include "caelitus/db/mariadb/MariaDbConnection.hpp"
+#include "caelitus/json/JsonTypes.hpp"
 #include "caelitus/log/Log.hpp"
 #include "caelitus/mqtt/mosquitto/MosquittoClient.hpp"
-#include "caelitus/net/TcpServer.hpp"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -90,18 +85,27 @@ mqtt::MqttConfig mqttConfig(const std::string& name) {
     return c;
 }
 
-// The application, as main() wires it.
+// A free TCP port on localhost (the configuration does not accept port 0).
+std::uint16_t freePort() {
+    const int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_port = 0;
+    ::inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+    socklen_t len = sizeof addr;
+    if (::bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof addr) != 0 ||
+        ::getsockname(fd, reinterpret_cast<sockaddr*>(&addr), &len) != 0)
+        throw test::Failure{"no free port"};
+    ::close(fd);
+    return ntohs(addr.sin_port);
+}
+
+// The real application (app::Application, as main() runs it) on a fresh test
+// database, with topics unique to this process so a shared broker is not disturbed.
 struct App {
-    std::shared_ptr<db::ConnectionPool> pool;
-    std::shared_ptr<db::SqlExecutor> sql;
-    std::shared_ptr<db::TransactionManager> tx;
-    std::shared_ptr<mqtt::MosquittoClient> mqtt = std::make_shared<mqtt::MosquittoClient>(mqttConfig("app"));
-    std::shared_ptr<catalog::BookCache> bookCache;
-    api::CatalogServices services;
-    std::unique_ptr<api::MqttReactionListener> listener;
-    std::unique_ptr<PeriodicTask> flusher;
-    std::shared_ptr<api::JsonRpcHandler> rpc = std::make_shared<api::JsonRpcHandler>();
-    std::unique_ptr<net::TcpServer> server;
+    std::string prefix = "caelitus-e2e/" + std::to_string(::getpid());
+    std::string topicPrefix = prefix + "/books";
+    std::unique_ptr<app::Application> application;
 
     App() {
         db::DbConfig dbc;
@@ -110,60 +114,36 @@ struct App {
         dbc.user = env("CAELITUS_TEST_DB_USER", "root");
         dbc.password = env("CAELITUS_TEST_DB_PASSWORD", "test");
         dbc.database = env("CAELITUS_TEST_DB_NAME", "caelitus_test");
-        pool = db::ConnectionPool::create(std::make_shared<db::mariadb::MariaDbConnectionFactory>(dbc));
         {
+            auto pool = db::ConnectionPool::create(std::make_shared<db::mariadb::MariaDbConnectionFactory>(dbc));
             auto conn = pool->acquire();
             for (const char* t : {"book_reactions_daily", "reviews", "book_tags", "tags", "book_authors", "books",
                                   "authors", "categories", "schema_migrations"})
                 conn->execute(std::string("DROP TABLE IF EXISTS ") + t, {});
         }
-        db::MigrationRunner(pool).migrate(catalog::mariadb::catalogMigrations());
-        sql = std::make_shared<db::SqlExecutor>(pool);
-        tx = std::make_shared<db::TransactionManager>(pool);
-
-        mqtt->start();
-        if (!mqtt->waitUntilConnected(5s)) throw test::Failure{"broker not reachable"};
-
-        using namespace catalog::mariadb;
-        auto categoryRepo = std::make_shared<MariaDbCategoryRepository>(sql);
-        auto authorRepo = std::make_shared<MariaDbAuthorRepository>(sql);
-        auto tagRepo = std::make_shared<MariaDbTagRepository>(sql);
-        auto bookRepo = std::make_shared<MariaDbBookRepository>(sql);
-        bookCache = std::make_shared<catalog::BookCache>(bookRepo);
-        bookCache->reload();
-        services = {
-            std::make_shared<catalog::CategoryService>(categoryRepo),
-            std::make_shared<catalog::AuthorService>(authorRepo, tx),
-            std::make_shared<catalog::BookService>(bookRepo, authorRepo, categoryRepo, tagRepo, tx, mqtt,
-                                                   catalog::systemClock(), bookCache),
-            std::make_shared<catalog::ReviewService>(std::make_shared<MariaDbReviewRepository>(sql), bookRepo, tx,
-                                                     mqtt),
-            std::make_shared<catalog::ReactionService>(std::make_shared<MariaDbReactionRepository>(sql), bookRepo,
-                                                       bookCache, tx, TimeZone::named("Europe/Athens")),
+        const Json config = {
+            {"mqtt",
+             {{"server", env("CAELITUS_TEST_MQTT_HOST", "127.0.0.1")},
+              {"port", std::stoi(env("CAELITUS_TEST_MQTT_PORT", "1883"))},
+              {"clientId", "caelitus-e2e-app-" + std::to_string(::getpid())},
+              {"will", {{"topic", prefix + "/status"}}}}},
+            {"db",
+             {{"host", dbc.host},
+              {"port", dbc.port},
+              {"user", dbc.user},
+              {"password", dbc.password},
+              {"database", dbc.database}}},
+            {"server", {{"port", freePort()}, {"bindAddress", "127.0.0.1"}}},
+            {"catalog", {{"reactions", {{"topicPrefix", topicPrefix}, {"topTopic", prefix + "/top"}}}}},
+            {"scheduler", {{"jobs", {{"reaction-flush", {{"schedule", "rate 100ms"}}}}}}},
         };
-        topicPrefix = "caelitus-e2e/" + std::to_string(::getpid()) + "/books";
-        listener = std::make_unique<api::MqttReactionListener>(mqtt, services.reactions, topicPrefix);
-        auto reactions = services.reactions;
-        flusher = std::make_unique<PeriodicTask>("flush", 100ms, [reactions] { reactions->flush(); });
-        flusher->start();
-
-        api::registerCatalogApi(*rpc, services);
-        net::TcpServerConfig sc;
-        sc.bindAddress = "127.0.0.1";
-        sc.port = 0;
-        server = std::make_unique<net::TcpServer>(sc, rpc);
-        server->start();
+        application = std::make_unique<app::Application>(AppConfig::fromJson(config.dump(), "e2e"));
+        application->start();
     }
 
-    ~App() {
-        server->stop();
-        listener.reset();
-        flusher->stop();
-        services.reactions->flush();
-        mqtt->stop();
-    }
+    ~App() { application->stop(); }
 
-    std::string topicPrefix;
+    std::uint16_t port() const { return application->port(); }
 };
 
 // Collects MQTT messages (thread-safe).
@@ -198,7 +178,7 @@ bool eventually(Pred pred, std::chrono::milliseconds timeout = 5000ms) {
 
 TEST(catalog_over_tcp_and_likes_over_mqtt) {
     App app;
-    RpcClient client(app.server->port());
+    RpcClient client(app.port());
 
     // Someone watching the catalog's outgoing events.
     mqtt::MosquittoClient observer(mqttConfig("observer"));
@@ -237,8 +217,7 @@ TEST(catalog_over_tcp_and_likes_over_mqtt) {
 
     auto today = [&](std::int64_t id) { return client.call("reactions.get", {{"bookId", id}})["periods"]["today"]; };
     CHECK(eventually([&] { return today(dune)["likes"] == 20 && today(dune)["dislikes"] == 5; }));
-    CHECK_EQ(today(messiah)["likes"], 0);
-    CHECK_EQ(app.listener->ignored(), 10u);
+    CHECK_EQ(today(messiah)["likes"], 0);  // switched off: the 10 likes were ignored
 
     Json top = client.call("reactions.top", {{"period", "today"}});
     CHECK_EQ(top["items"].size(), 1u);
@@ -266,6 +245,52 @@ TEST(catalog_over_tcp_and_likes_over_mqtt) {
 
     observer.stop();
     phone.stop();
+}
+
+TEST(scheduled_jobs_and_health_over_tcp) {
+    App app;
+    RpcClient client(app.port());
+
+    // A first report exists before the server accepts requests; the health
+    // job then refreshes it once everything runs.
+    Json health;
+    CHECK(eventually([&] {
+        health = client.call("system.health");
+        return health["server"]["activeConnections"].get<int>() >= 1;  // this client
+    }));
+    CHECK_EQ(health["status"], "ok");
+    CHECK_EQ(health["database"]["up"], true);
+    CHECK_EQ(health["mqtt"]["connected"], true);
+    CHECK(health["process"]["threads"].get<int>() > 5);
+    CHECK_EQ(health["jobs"]["total"], 5);
+
+    Json jobs = client.call("scheduler.list");
+    std::vector<std::string> names;
+    for (const auto& j : jobs) names.push_back(j["name"]);
+    CHECK(names ==
+          (std::vector<std::string>{"book-cache-reload", "health", "reaction-cleanup", "reaction-flush", "top-books"}));
+    CHECK_EQ(client.call("scheduler.get", {{"name", "reaction-flush"}})["schedule"], "rate 100ms");  // from the config
+    CHECK(client.call("scheduler.get", {{"name", "reaction-cleanup"}})["schedule"].get<std::string>().rfind(
+              "cron 0 3 * * *", 0) == 0);
+
+    // Run the nightly cleanup by hand, pause and resume a job, over JSON-RPC.
+    client.call("scheduler.run", {{"name", "reaction-cleanup"}});
+    CHECK(
+        eventually([&] { return client.call("scheduler.get", {{"name", "reaction-cleanup"}})["lastResult"] == "ok"; }));
+    CHECK_EQ(client.call("scheduler.pause", {{"name", "top-books"}})["nextRun"], nullptr);
+    CHECK(client.call("scheduler.resume", {{"name", "top-books"}})["nextRun"].is_string());
+
+    // top-books publishes a retained JSON array.
+    mqtt::MosquittoClient watcher(mqttConfig("watcher"));
+    Inbox top;
+    watcher.subscribe(app.prefix + "/top", top.handler());
+    watcher.start();
+    CHECK(watcher.waitUntilConnected(5s));
+    client.call("scheduler.run", {{"name", "top-books"}});
+    CHECK(eventually([&] { return top.has(app.prefix + "/top"); }));
+    watcher.publish(app.prefix + "/top", "", mqtt::PublishOptions::retained());  // clean up
+    watcher.publish(app.prefix + "/status", "", mqtt::PublishOptions::retained());
+    watcher.stop();
 }
 
 int main() {

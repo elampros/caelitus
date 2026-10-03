@@ -396,6 +396,28 @@ TEST(reaction_periods_are_rolling_windows_ending_today) {
     CHECK(!parsePeriod("forever").has_value());
 }
 
+TEST(old_daily_reactions_are_deleted_totals_kept) {
+    Catalog c;
+    auto b = c.books.create(c.validBook());
+    c.now = fromParts({Date(2025, 1, 10), 12, 0, 0, 0});  // old
+    c.reactions.record(b.id, Reaction::Like);
+    c.reactions.flush();
+    c.now = fromParts({Date(2026, 1, 9), 12, 0, 0, 0});  // 364 days later
+    c.reactions.record(b.id, Reaction::Like);
+    c.reactions.flush();
+    c.now = fromParts({Date(2026, 1, 20), 12, 0, 0, 0});
+    // keep 366 days: 2025-01-20 and later stay; 2025-01-10 goes.
+    CHECK_EQ(c.reactions.deleteOlderThan(366), 1);
+    CHECK_EQ(c.store.dailyReactions.size(), 1u);
+    CHECK_EQ(periodOf(c.reactions.stats(b.id), Period::AllTime).likes, 2);  // totals untouched
+    CHECK_EQ(c.reactions.deleteOlderThan(366), 0);
+    CHECK_THROWS_AS(c.reactions.deleteOlderThan(365), std::invalid_argument);
+
+    const auto stats = c.reactions.bufferStats();
+    CHECK_EQ(stats.pending, 0u);
+    CHECK(stats.capacity > 0u);
+}
+
 TEST(failed_flush_keeps_reactions_for_the_next_one) {
     Catalog c;
     auto b = c.books.create(c.validBook());

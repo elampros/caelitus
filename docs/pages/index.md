@@ -18,7 +18,8 @@ digraph modules {
     node [shape=box, style="rounded,filled", fillcolor="#eef4fc", color="#2f6fc4", fontname="Helvetica", fontsize=11];
     edge [color="#8a94a6", arrowsize=0.7];
 
-    app [label="app\n(main, Application)", fillcolor="#dbe8fa", URL="\ref app"];
+    app [label="app\n(main, Application, health)", fillcolor="#dbe8fa", URL="\ref app"];
+    scheduler [label="scheduler\njobs, cron", URL="\ref scheduler"];
     api [label="api\nJSON-RPC methods", URL="\ref api"];
     config [label="config", URL="\ref config"];
     catalog_mariadb [label="catalog_mariadb\nSQL repositories", URL="\ref catalog_mariadb"];
@@ -30,8 +31,8 @@ digraph modules {
     net [label="net\nTCP server", URL="\ref net"];
     base [label="core, log, json, cache", URL="\ref core"];
 
-    app -> api; app -> config; app -> catalog_mariadb; app -> db_mariadb; app -> mqtt_mosquitto;
-    api -> catalog; api -> net; api -> mqtt;
+    app -> api; app -> config; app -> catalog_mariadb; app -> db_mariadb; app -> mqtt_mosquitto; app -> scheduler;
+    api -> catalog; api -> net; api -> mqtt; api -> scheduler; scheduler -> base;
     catalog_mariadb -> catalog; catalog_mariadb -> db;
     catalog -> db; catalog -> mqtt; catalog -> base;
     db_mariadb -> db; mqtt_mosquitto -> mqtt;
@@ -55,9 +56,10 @@ milliseconds, without a database.
 | @ref catalog_mariadb | The SQL behind the catalog repositories; the schema | @ref caelitus::catalog::mariadb::catalogMigrations "catalog::mariadb::catalogMigrations()" |
 | @ref mqtt | MQTT client: subscriptions, reconnects, online/offline status | @ref caelitus::mqtt::IMqttClient "mqtt::IMqttClient" |
 | @ref net | Asynchronous TCP server for `\0`-terminated messages | @ref caelitus::net::TcpServer "net::TcpServer" |
+| @ref scheduler | Periodic jobs: every / rate / cron, pause, resume, run now | @ref caelitus::scheduler::Scheduler "scheduler::Scheduler" |
 | @ref config | `config.json` loading and validation | @ref caelitus::AppConfig "AppConfig" |
-| @ref core | Dates, time zones, domain errors, periodic tasks | @ref caelitus::DomainError "DomainError", @ref caelitus::TimeZone "TimeZone" |
-| @ref app | `main()` and the start/stop order | @ref caelitus::app::Application "app::Application" |
+| @ref core | Dates, time zones, domain errors | @ref caelitus::DomainError "DomainError", @ref caelitus::TimeZone "TimeZone" |
+| @ref app | `main()`, the start/stop order, the jobs, health | @ref caelitus::app::Application "app::Application", @ref caelitus::app::HealthMonitor "app::HealthMonitor" |
 
 The full list is under **Topics** in the menu.
 
@@ -87,7 +89,7 @@ A message on `catalog/in/books/42/like`:
    dispatcher thread calls @ref caelitus::api::MqttReactionListener "api::MqttReactionListener".
 2. @ref caelitus::catalog::ReactionService::record "catalog::ReactionService::record()" asks @ref caelitus::catalog::BookCache "catalog::BookCache" (memory only)
    whether book 42 accepts reactions, and adds 1 to an in-memory counter.
-3. Once a second, a @ref caelitus::PeriodicTask "PeriodicTask" calls @ref caelitus::catalog::ReactionService::flush "catalog::ReactionService::flush()", which
+3. Once a second, the "reaction-flush" job of the @ref caelitus::scheduler::Scheduler "scheduler::Scheduler" calls @ref caelitus::catalog::ReactionService::flush "catalog::ReactionService::flush()", which
    writes every accumulated counter in a single transaction.
 
 ## Conventions

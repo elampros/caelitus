@@ -83,6 +83,15 @@ public:
         map_.swap(content);
     }  // the old content (now in `content`) is freed after the lock is released
 
+    /// Calls `f(const K&, const V&)` for every entry, under the shared lock:
+    /// keep `f` cheap and never call back into the cache from it. Does not
+    /// count as hits or misses.
+    template <typename F>
+    void forEach(F&& f) const {
+        std::shared_lock<WriterPreferringMutex> lock(mutex_);
+        for (const auto& [key, value] : map_) f(key, value);
+    }
+
     /// Current size and hit/miss counters.
     Stats stats() const {
         std::shared_lock<WriterPreferringMutex> lock(mutex_);

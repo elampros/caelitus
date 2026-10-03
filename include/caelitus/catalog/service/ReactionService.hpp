@@ -39,7 +39,7 @@ struct ReactionStats {
 /// record() only counts in memory (cheap, thread-safe, called for every
 /// incoming MQTT message); flush() writes the accumulated counts in one
 /// transaction and is called periodically (config
-/// "catalog.reactions.flushIntervalMs", default 1 s) and at shutdown. Results
+/// by the "reaction-flush" job, default every second) and at shutdown. Results
 /// therefore lag by up to one flush interval, and a burst of 1000 likes costs
 /// one small transaction instead of 1000.
 ///
@@ -96,6 +96,22 @@ public:
     /// @param limit  1..Page::kMaxSize.
     /// @throws ValidationError for a bad limit.
     std::vector<RankedBook> top(Period period, ReactionOrder order, int limit);
+
+    /// Deletes per-day counts older than `keepDays` days (today, in the
+    /// catalog's time zone, is day 0). All-time totals are kept.
+    /// @param keepDays  At least 366, so "last year" stays exact.
+    /// @return The number of book-day rows deleted.
+    /// @throws std::invalid_argument for keepDays < 366.
+    std::int64_t deleteOlderThan(int keepDays);
+
+    /// Size and health of the in-memory buffer, for monitoring.
+    struct BufferStats {
+        std::size_t pending = 0;   ///< Book-days waiting for the next flush.
+        std::size_t capacity = 0;  ///< The maxBufferedEntries limit.
+        std::int64_t dropped = 0;  ///< Reactions dropped because the buffer was full, since start.
+    };
+    /// Current buffer usage.
+    BufferStats bufferStats() const;
 
     /// The days a period covers, ending today; std::nullopt for Period::AllTime.
     std::optional<DateRange> range(Period period) const;

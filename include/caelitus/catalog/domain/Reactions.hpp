@@ -90,6 +90,11 @@ public:
     /// @param order  Best or worst first.
     /// @param limit  Most entries to return.
     virtual std::vector<RankedBook> top(const std::optional<DateRange>& range, ReactionOrder order, int limit) = 0;
+
+    /// Deletes the per-day counts of days before `day`. The all-time totals on
+    /// the books are not touched.
+    /// @return The number of book-day rows deleted.
+    virtual std::int64_t deleteBefore(const Date& day) = 0;
 };
 
 }  // namespace caelitus::catalog

@@ -60,4 +60,15 @@ void BookCache::forget(BookId id) {
     cache_.erase(id.value);
 }
 
+std::size_t BookCache::approxBytes() const {
+    // Per entry: the key and value, one hash node (two pointers) and one bucket
+    // pointer, plus the title's heap buffer when it does not fit inline.
+    constexpr std::size_t perEntry = sizeof(std::int64_t) + sizeof(BookBrief) + 3 * sizeof(void*);
+    std::size_t bytes = 0;
+    cache_.forEach([&](const std::int64_t&, const BookBrief& b) {
+        bytes += perEntry + (b.title.capacity() > 15 ? b.title.capacity() + 1 : 0);
+    });
+    return bytes;
+}
+
 }  // namespace caelitus::catalog

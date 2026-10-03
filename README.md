@@ -29,7 +29,7 @@ Read it top to bottom once; afterwards use the table of contents.
 6. [Talking to the server: the JSON-RPC API](#6-talking-to-the-server-the-json-rpc-api)
 7. [MQTT: likes in, events out](#7-mqtt-likes-in-events-out)
 8. [Architecture](#8-architecture)
-9. [The modules, one by one](#9-the-modules-one-by-one)
+9. [The modules, one by one](#9-the-modules-one-by-one) (including [scheduled jobs and health](#scheduled-jobs-and-health))
 10. [The database](#10-the-database)
 11. [Configuration reference](#11-configuration-reference)
 12. [Logging](#12-logging)
@@ -58,6 +58,8 @@ and free-form **tags**, readers' **reviews** (with a 1-5 rating), and
 | Likes/dislikes | Arrive over MQTT at high rate; counted in memory, written once a second; per-day history; rankings for today, yesterday, last 7/30 days, last year, all time |
 | Events | Every book change and new review is published to MQTT for other systems |
 | Self-describing API | `rpc.discover` returns an [OpenRPC](https://open-rpc.org) document; the web UI's TypeScript types are generated from it |
+| Scheduled jobs | A built-in scheduler (`every 15s`, `rate 1s`, `cron 0 3 * * *` in Athens time) runs the periodic work; jobs are configured in `config.json` and can be listed, run, paused and resumed over JSON-RPC |
+| Health | A health check every 15 seconds (database, MQTT, cache, server, likes, memory, threads, jobs) logs what goes wrong and answers `system.health` |
 | Operations | Graceful shutdown (no request or like lost), automatic schema migrations, reconnects to MQTT and the database, an online/offline status topic, throttled logs |
 
 The server is a single executable, `caelitus`, with a JSON configuration file.
@@ -92,7 +94,7 @@ docker run -d --name mosquitto -p 1883:1883 eclipse-mosquitto:2 mosquitto -c /mo
 
 # build and run the server
 cmake --preset asan
-cmake --build --preset asan -j
+cmake --build --preset asan
 CAELITUS_DB_PASSWORD=caelitus-dev ./build/asan/src/caelitus
 
 # in another terminal: sample data (once) and a request
@@ -147,7 +149,7 @@ up automatically (Settings → Build → CMake shows them as profiles).
 
 ```bash
 cmake --preset asan                   # configure into build/asan
-cmake --build --preset asan -j        # build everything (server, libraries, tests)
+cmake --build --preset asan        # build everything (server, libraries, tests)
 ctest --preset unit                   # run the unit tests
 ```
 
@@ -232,7 +234,8 @@ On start the server logs every step:
 [info] [app] Book cache loaded: 528 books
 [info] [api.mqtt] Listening for reactions on catalog/in/books/<bookId>/like|dislike
 [info] [server] Listening on 0.0.0.0:9000 (2 I/O threads, 8 workers, max 10000 connections)
-[info] [app] Ready on port 9000: 26 API methods
+[info] [scheduler] Scheduler started: 5 jobs (0 paused), 2 worker threads
+[info] [app] Ready on port 9000: 32 API methods, 5 scheduled jobs
 ```
 
 **Stop it with Ctrl+C or `kill <pid>`** (SIGINT/SIGTERM). The shutdown is
@@ -241,11 +244,13 @@ graceful and loses nothing:
 1. the TCP server stops accepting and lets running requests finish (up to
    `shutdownTimeoutSec`);
 2. the MQTT listener stops taking likes;
-3. the likes still buffered in memory are written to the database;
-4. the MQTT client publishes `offline` to the status topic and disconnects.
+3. the scheduler stops planning jobs and waits for any running one;
+4. the likes still buffered in memory are written to the database;
+5. the MQTT client publishes `offline` to the status topic and disconnects.
 
 **Exit codes:** `0` clean stop, `1` runtime error (e.g. database unreachable
-at startup, port in use), `2` bad command line or configuration.
+at startup, port in use), `2` bad command line or configuration (including an
+unknown job name in `scheduler.jobs`).
 
 ### Sample data
 
@@ -347,6 +352,12 @@ The web gateway also exposes the same API over HTTP:
 | `reviews.delete` | `id`* | Deletes a review; updates the book's rating |
 | `reactions.get` | `bookId`* | A book's likes and dislikes for every period |
 | `reactions.top` | `period`*, `order`, `limit` | Most liked (or disliked) books in a period |
+| `scheduler.list` | | Every scheduled job: schedule, paused/running, next run, last result and error, counters |
+| `scheduler.get` | `name`* | One job |
+| `scheduler.run` | `name`* | Runs a job now (also while paused); Conflict `job_running` if it is running |
+| `scheduler.pause` | `name`* | Stops a job's scheduled runs (until resumed or restart) |
+| `scheduler.resume` | `name`* | Resumes a paused job; its next run is planned from now |
+| `system.health` | | The latest health report (refreshed every 15 s) |
 | `system.ping` | | Liveness check |
 | `rpc.discover` | | The OpenRPC description of all of the above |
 
@@ -383,8 +394,8 @@ Enumerations: `sort` is `publishedDesc` (default), `publishedAsc`, `titleAsc`,
 | -32600 | Valid JSON, but not a JSON-RPC request | `reason` |
 | -32601 | Unknown method | |
 | -32602 | **Invalid params**: missing, unknown, wrong type, or a business rule rejected the value | `field`, `reason` (and `code: "validation_failed"` for business rules) |
-| -32001 | **Not found** | `code: "not_found"`, `entity`, `id` |
-| -32002 | **Conflict** with the current state | `code`: `isbn_taken`, `name_taken`, `slug_taken`, `author_has_books`, `category_in_use`, `version_conflict`, `stale_reference` |
+| -32001 | **Not found** | `code: "not_found"`, `entity`, `id` (for jobs, the name) |
+| -32002 | **Conflict** with the current state | `code`: `isbn_taken`, `name_taken`, `slug_taken`, `author_has_books`, `category_in_use`, `version_conflict`, `stale_reference`, `job_running` |
 | -32003 | **Unavailable**: the database is temporarily unreachable or overloaded; retry later | |
 | -32603 | **Internal error**: a bug or a permanent database problem. The details are in the server log, never sent to the client | |
 
@@ -432,6 +443,7 @@ The like shows up in `reactions.get` within a second (see
 | `catalog/books/<id>/updated` | the title | A book was updated |
 | `catalog/books/<id>/deleted` | empty | A book was deleted |
 | `catalog/books/<id>/reviews` | `"<rating> <reviewer>"` | A review was added |
+| `catalog/stats/top-today` | JSON array of `{bookId, title, likes, dislikes, score}` (retained) | Every minute (`top-books` job) |
 
 Events are published **after** the database transaction commits, so a listener
 never hears about a change that was rolled back. Delivery is best effort: if
@@ -519,17 +531,19 @@ flowchart BT
     mqtt_mosquitto --> mqtt
     catalog["catalog (domain + services)"] --> db & mqtt & base
     catalog_mariadb --> catalog & db
-    api --> catalog & net & mqtt
+    scheduler --> base
+    api --> catalog & net & mqtt & scheduler
     config --> db & mqtt & net
-    app["caelitus (executable)"] --> api & config & catalog_mariadb & db_mariadb & mqtt_mosquitto
+    app["app + caelitus (executable)"] --> api & config & catalog_mariadb & db_mariadb & mqtt_mosquitto & scheduler
 ```
 
 | Library | Directory | Purpose |
 |---|---|---|
 | `log` | `log/` | Named loggers (spdlog), log throttling |
-| `core` | `core/` | Dates and timestamps, time zones, domain errors, periodic tasks |
+| `core` | `core/` | Dates and timestamps, time zones, domain errors |
 | `json` | `json/` | JSON conversions for core types (header-only) |
 | `cache` | `cache/` | Thread-safe in-memory key/value cache (header-only) |
+| `scheduler` | `scheduler/` | Periodic jobs: every / rate / cron schedules, pause, resume, run now, status |
 | `db` | `db/` | Connection pool, SQL execution, transactions with retries, migrations, error hierarchy |
 | `db_mariadb` | `db/mariadb/` | The MariaDB driver behind `db` |
 | `mqtt` | `mqtt/` | MQTT client logic: subscriptions, dispatch, status, statistics |
@@ -537,9 +551,9 @@ flowchart BT
 | `net` | `net/` | Asynchronous TCP server for `\0`-terminated messages |
 | `catalog` | `catalog/domain/`, `catalog/service/` | The business: entities, rules, services |
 | `catalog_mariadb` | `catalog/mariadb/` | SQL implementations of the catalog repositories; the schema migrations |
-| `api` | `api/` | JSON-RPC protocol, the API methods, OpenRPC, the MQTT like listener |
+| `api` | `api/` | JSON-RPC protocol, the catalog and operations (scheduler, health) methods, OpenRPC, the MQTT like listener |
 | `config` | `config/` | Loading and validating `config.json` |
-| (executable) | `app/` | `main()` and `Application` |
+| `app` + executable | `app/` | `Application` (wiring, the job list), `HealthMonitor`, and `main()` |
 
 Each library's **public headers** are in `include/caelitus/<dir>/`; its `.cpp`
 files and **private headers** are in `src/<dir>/`. Code outside a library may
@@ -595,7 +609,7 @@ sequenceDiagram
     participant L as MqttReactionListener
     participant RS as ReactionService
     participant BC as BookCache
-    participant F as flush task (every 1 s)
+    participant F as reaction-flush job (every 1 s)
     participant DB as MariaDB
     P->>B: catalog/in/books/42/like
     B->>M: message (network thread)
@@ -620,8 +634,8 @@ negligible.
 | TCP workers | `server.workerThreads` (8) | Run API methods (they block on the database) |
 | MQTT network | 1 | libmosquitto's socket loop, reconnects |
 | MQTT dispatcher | 1 | Runs message handlers (the like listener) |
-| reaction flush | 1 | Writes buffered likes every `flushIntervalMs` |
-| book cache reload | 1 | Reloads the book cache every `bookCacheReloadSec` |
+| scheduler timer | 1 | Decides which job is due; watches job timeouts |
+| scheduler workers | `scheduler.threads` (2) | Run the jobs (flush likes, reload the cache, health, ...) |
 
 Everything shared between threads is protected: services and repositories are
 stateless or use their own locks; the pool, the cache and the MQTT client are
@@ -640,7 +654,6 @@ thread-safe. The test suite runs clean under ThreadSanitizer.
   saving rule built in. Used to decide which **day** a like belongs to.
 - `DomainError` and subclasses `ValidationError`, `NotFoundError`,
   `ConflictError`: what services throw. Each has a stable `code()`.
-- `PeriodicTask`: runs a function on a schedule on its own thread.
 
 ### db: database access without a particular database
 
@@ -771,6 +784,102 @@ timeout. It knows nothing about JSON; it only moves `\0`-terminated messages.
 errors**: a typo such as `"prot": 9000` stops the server with
 `…/config.json: server.prot: unknown key` instead of being silently ignored.
 
+### Scheduled jobs and health
+
+Everything the server does on a timer runs as a named **job** on a
+`scheduler::Scheduler`: one timer thread decides what is due, a small pool of
+worker threads runs the jobs, so a slow job delays nothing else.
+
+| Job | Default schedule | Does |
+|---|---|---|
+| `reaction-flush` | `rate 1s` | Writes the buffered likes/dislikes to the database |
+| `book-cache-reload` | `every 5min` | Reloads every book into the in-memory cache (catches edits made outside the server) |
+| `health` | `every 15s` (and at start) | Checks the whole server; logs problems; feeds `system.health` |
+| `reaction-cleanup` | `cron 0 3 * * *` | At 03:00 Athens time, deletes per-day like counts older than `catalog.reactions.keepDays` (all-time totals stay) |
+| `top-books` | `every 1min` (and at start) | Publishes today's top 10 as retained JSON to `catalog/stats/top-today` |
+
+**Schedules** have three forms:
+
+| Form | Meaning |
+|---|---|
+| `every 15s` | 15 seconds after the previous run **finished**: runs never pile up |
+| `rate 1s` | Every second from the previous **planned** start; if the server falls behind, missed runs are skipped, not caught up in a burst |
+| `cron 0 3 * * *` | Classic 5-field cron (`minute hour day month weekday`, with `*`, ranges `1-5`, lists `1,15`, steps `*/10`, names `mon`, `jan`), in `catalog.timeZone`. On the night clocks go forward a time in the skipped hour does not happen; on the night they go back it happens once |
+
+Durations take `ms`, `s`, `min`, `h` or `d`.
+
+**Rules every job follows:**
+
+- A job **never runs twice at the same time**; if it is still running when due
+  again, that run is skipped.
+- An exception thrown by a job is a **failure**: it is logged (at most once a
+  minute per job), kept in the job's status, and retried if the job has
+  `retryAttempts` (with a doubling delay), otherwise the job waits for its next
+  regular run. When a failing job succeeds again, an info line says so.
+- A run longer than its `timeoutSec` is logged as a warning (it is not killed:
+  C++ cannot safely stop a thread). On shutdown, running jobs see
+  `JobContext::stopRequested()` and the scheduler waits for them.
+
+**Control over JSON-RPC:** `scheduler.list` shows every job (schedule, paused,
+running, next run, last result, last error, counters); `scheduler.run`,
+`scheduler.pause` and `scheduler.resume` act on one by name. Pausing is not
+saved: after a restart, `"enabled": false` in the configuration decides.
+
+```bash
+rpc '{"jsonrpc":"2.0","id":1,"method":"scheduler.list"}'
+rpc '{"jsonrpc":"2.0","id":2,"method":"scheduler.pause","params":{"name":"top-books"}}'
+rpc '{"jsonrpc":"2.0","id":3,"method":"scheduler.run","params":{"name":"reaction-cleanup"}}'
+```
+
+**Configuration** (section `scheduler`; see [section 11](#11-configuration-reference)):
+list a job only to change it.
+
+```json
+"scheduler": {
+  "threads": 2,
+  "jobs": {
+    "health": { "schedule": "every 30s" },
+    "reaction-cleanup": { "schedule": "cron 30 4 * * sun", "retryAttempts": 5 },
+    "top-books": { "enabled": false }
+  }
+}
+```
+
+A job name that does not exist is an error at startup (with the list of known
+jobs), so a typo cannot silently disable nothing.
+
+#### The health job
+
+Every 15 seconds `app::HealthMonitor` measures the server and keeps the result
+for `system.health`:
+
+| Part | Measured | Reported as a problem when |
+|---|---|---|
+| Database | a `SELECT 1` round trip; open/idle/max pool connections | the query fails; it takes longer than `health.slowDatabaseMs`; every connection is in use |
+| MQTT | connected; messages sent, dropped, received | the broker is not connected |
+| Book cache | books, estimated memory, hits/misses | (information only) |
+| TCP server | connections, requests, errors | (information only) |
+| Likes | book-days buffered, likes dropped | the buffer is fuller than `health.reactionBufferWarnPercent`; likes were dropped since the last check |
+| Process | resident memory, threads, uptime | memory above `health.maxMemoryMb` (when set) |
+| Jobs | total, paused, running, failing | another job's last run failed |
+
+The log tells the story without repeating it every 15 seconds: a **new problem
+is logged as a warning at once**, then at most every 5 minutes while it lasts;
+when it goes away an **info line says "resolved"**; every check also writes one
+`debug` line with the main figures. For example, with the database stopped for
+a few seconds:
+
+```text
+[warning] [health] Health: database unreachable: Query failed [SELECT 1]: … Lost connection to server during query
+[info]    [health] Health: resolved: database unreachable: …
+```
+
+```bash
+rpc '{"jsonrpc":"2.0","id":1,"method":"system.health"}'
+# {"status":"ok","problems":[],"uptimeSeconds":3600,"database":{"up":true,"pingMs":0.6,...},
+#  "bookCache":{"books":528,"approxBytes":50897,...},"process":{"memoryBytes":122400768,"threads":16},...}
+```
+
 ---
 
 ## 10. The database
@@ -900,11 +1009,34 @@ durations carry their unit in the name.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `timeZone` | `Europe/Athens` | What "today" means for likes (`UTC` or a European zone) |
-| `bookCacheReloadSec` | 300 | Full reload of the in-memory book cache |
+| `timeZone` | `Europe/Athens` | What "today" means for likes, and the time zone of cron schedules (`UTC` or a European zone) |
 | `reactions.topicPrefix` | `catalog/in/books` | Likes arrive on `<prefix>/<id>/like` |
-| `reactions.flushIntervalMs` | 1000 | How often buffered likes are written |
 | `reactions.maxBuffered` | 100000 | Book-days kept in memory between flushes |
+| `reactions.keepDays` | 400 | Per-day like counts kept by `reaction-cleanup` (at least 366, so "last year" stays exact) |
+| `reactions.topTopic` | `catalog/stats/top-today` | Where `top-books` publishes |
+
+How often likes are written and the cache reloaded are now job schedules
+(`reaction-flush`, `book-cache-reload`) in `scheduler`.
+
+### `scheduler`
+
+| Key | Default | Meaning |
+|---|---|---|
+| `threads` | 2 | Jobs that can run at the same time |
+| `jobs.<name>.schedule` | per job (see [the job list](#scheduled-jobs-and-health)) | `every …`, `rate …` or `cron …` |
+| `jobs.<name>.enabled` | true | false: the job starts paused (it can still be run by hand) |
+| `jobs.<name>.timeoutSec` | per job (0: none) | Runs longer than this are logged as warnings |
+| `jobs.<name>.jitterSec` | 0 | Random delay before the first run |
+| `jobs.<name>.retryAttempts` | per job | Retries after a failure before waiting for the next regular run |
+| `jobs.<name>.retryDelaySec` | per job | First retry delay; doubles for each further retry |
+
+### `health`
+
+| Key | Default | Meaning |
+|---|---|---|
+| `slowDatabaseMs` | 500 | A test query slower than this is a problem |
+| `maxMemoryMb` | 0 | Resident memory above this is a problem; 0: not checked |
+| `reactionBufferWarnPercent` | 80 | A like buffer fuller than this is a problem |
 
 ### `log`
 
@@ -939,7 +1071,8 @@ with its duration):
 | `db.pool`, `db.sql`, `db.tx`, `db.migrations` | Connections; statements; transactions and retries; schema |
 | `mqtt`, `mqtt.lib` | The MQTT client; libmosquitto's own messages |
 | `catalog.reactions`, `cache.books` | Like buffering and flushing; the book cache |
-| `task` | Periodic tasks that failed |
+| `scheduler` | Jobs: start/stop, pause/resume/run by hand, failures, recoveries, timeouts (each run at debug) |
+| `health` | Problems found by the health job and their resolution (each check at debug) |
 
 **Throttling.** A repeating problem (the broker is down, the database refuses
 connections) would otherwise write thousands of identical lines. Such messages
@@ -958,18 +1091,19 @@ handled, `info` is the story of the process (start, stop, connect), `debug` and
 
 | Suite | Kind | Covers |
 |---|---|---|
-| `datetime_tests` | unit | Dates, timestamps, ISO 8601, time zones and DST |
+| `datetime_tests` | unit | Dates, timestamps, ISO 8601, time zones and DST, local ↔ UTC |
+| `scheduler_tests` | unit | Schedule parsing, cron (incl. summer-time changes), no overlap, pause/resume, manual runs, retries, timeouts, shutdown |
 | `db_tests` | unit | Pool, executor, transactions, retries, migrations, error translation (with a fake driver) |
 | `config_tests` | unit | Configuration parsing, validation, `${ENV}`, file lookup |
 | `mqtt_tests` | unit | Topic rules, subscriptions, dispatch, status, reconnects (fake transport) |
 | `tcp_tests` | unit | Framing, ordering, limits, backpressure, shutdown (real sockets on localhost) |
-| `cache_tests`, `catalog_service_tests` | unit | The cache; every service rule (in-memory fakes) |
+| `cache_tests`, `catalog_service_tests` | unit | The cache (incl. its memory estimate); every service rule (in-memory fakes) |
 | `api_tests` | unit | JSON-RPC protocol, every method over fakes, results checked against their schemas, OpenRPC |
 | `app_tests` | unit | Generated files are current; sample data passes the rules |
 | `db_integration_tests` | integration | The MariaDB driver and the db layer against a real server |
 | `catalog_integration_tests` | integration | The SQL repositories against a real server |
 | `mqtt_integration_tests` | integration | The MQTT client against a real broker |
-| `app_integration_tests` | integration | The whole server end to end |
+| `app_integration_tests` | integration | The real `Application` end to end: catalog over TCP, likes over MQTT, scheduled jobs and health over JSON-RPC |
 
 **Unit tests** need nothing external and run in seconds:
 
@@ -1005,7 +1139,7 @@ threading bugs build the `tsan` preset and run a test like this (the `setarch`
 part is needed on recent kernels):
 
 ```bash
-cmake --preset tsan && cmake --build --preset tsan -j
+cmake --preset tsan && cmake --build --preset tsan
 setarch "$(uname -m)" -R build/tsan/tests/tcp_tests
 ```
 
@@ -1109,6 +1243,35 @@ Example: `books.count` returning the number of books in a category.
 4. Add it to `config/config.json` if it should be visible, to
    [section 11](#11-configuration-reference), and a test to `config_tests.cpp`.
 
+### Add a scheduled job
+
+Example: every hour, log how many books have no reviews.
+
+1. **The work** belongs in a service or repository like any other logic, e.g.
+   `BookService::countUnreviewed()`, with a unit test.
+2. **The job**: add an entry to `Application::defineJobs()` in
+   `src/app/Application.cpp`, with its name, a one-line description, a default
+   schedule and the function:
+   ```cpp
+   {
+       JobSpec j{"unreviewed-report", "Logs how many books have no reviews", Schedule::every(1h),
+                 [books = c.services.books, log = log::get("app")](JobContext&) {
+                     log->info("{} books have no reviews", books->countUnreviewed());
+                 }};
+       j.retryAttempts = 2;  // optional: timeout, jitter, runOnStart, enabled, ...
+       jobs.push_back(j);
+   }
+   ```
+   Throw from the function to report a failure. A long job should check
+   `ctx.stopRequested()` so shutdown stays quick.
+3. That is all: the job appears in `scheduler.list` and in the health report,
+   can be paused/run over JSON-RPC, and its schedule can be changed in
+   `config.json` under `scheduler.jobs.unreviewed-report`. Mention it in the job
+   table of this README.
+
+Any other component can also add jobs at runtime through
+`Application::scheduler()->add(...)`.
+
 ### Debug something
 
 - Turn up a logger: `"levels": {"db.sql": "trace", "server": "debug"}`.
@@ -1156,6 +1319,9 @@ Example: `books.count` returning the number of books in a category.
 | `Database has migration 004 (…) which this build does not know` | The database was migrated by a newer build; run that build (or newer) |
 | `app_tests` fails: `db/schema.sql is out of date` | `cmake --build --preset asan --target schema` |
 | `ERROR 1050 Table 'categories' already exists` when loading `catalog.sql` | The database is not empty (the server already created the schema). Drop and recreate the database, then load the script |
+| `Configuration error: scheduler.jobs.X: unknown job (known jobs: …)` | A typo in a job name in `config.json`; use one of the listed names |
+| `[warning] [health] Health: …` in the log | The health job found a problem; the message says what. `system.health` shows the full report. A matching `resolved` line follows when it clears |
+| `Job 'X' failed (N in a row): …` | A scheduled job threw; `scheduler.get` shows `lastError`. Fix the cause, then `scheduler.run` it to check |
 | A test fails only under `tsan` with "unexpected memory mapping" | Run it under `setarch "$(uname -m)" -R` |
 | CLion does not see the presets | Settings → Build, Execution, Deployment → CMake → enable the presets (asan, debug, …) |
 
@@ -1169,6 +1335,11 @@ These are deliberate choices for the current stage, not oversights:
   two servers would each keep their own (changes made through one reach the
   other only at the next cache reload). Running several instances would need a
   shared cache or cache-invalidation messages.
+- **Job state lives in memory.** A job paused over JSON-RPC runs again after a
+  restart (unless `"enabled": false` in the configuration), and run history
+  starts from zero. With several instances, every instance would run every job
+  (harmless for these jobs, but worth knowing before adding one that must run
+  once).
 - **No authentication or authorization** on the API or MQTT. Put the server
   behind a trusted network or a gateway that authenticates.
 - **No TLS** on the TCP port or to the broker.

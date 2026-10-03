@@ -3,6 +3,7 @@
 #include "caelitus/core/TimeZone.hpp"
 #include "caelitus/json/JsonTypes.hpp"
 #include "caelitus/mqtt/Topic.hpp"
+#include "caelitus/scheduler/Schedule.hpp"
 
 #include <cstdlib>
 #include <fstream>
@@ -95,6 +96,17 @@ public:
     Section section(const char* key) { return Section(find(key), qualified(key), source_); }
 
     bool present() const noexcept { return node_ != nullptr; }
+
+    /// Every key of this object, marked as read (for maps keyed by name).
+    std::vector<std::string> keys() {
+        std::vector<std::string> out;
+        if (!node_) return out;
+        for (const auto& [key, value] : node_->items()) {
+            used_.insert(key);
+            out.push_back(key);
+        }
+        return out;
+    }
     bool has(const char* key) const { return node_ && node_->contains(key); }
 
     // Call after reading every known key.
@@ -264,8 +276,6 @@ AppConfig::Server readServer(Section s) {
 AppConfig::Catalog readCatalog(Section s) {
     AppConfig::Catalog c;
     c.timeZone = s.string("timeZone", c.timeZone);
-    c.bookCacheReload =
-        std::chrono::seconds(s.integer<std::int64_t>("bookCacheReloadSec", c.bookCacheReload.count(), 1, 86400));
     try {
         TimeZone::named(c.timeZone);
     } catch (const std::invalid_argument& e) {
@@ -278,11 +288,56 @@ AppConfig::Catalog readCatalog(Section s) {
     } catch (const mqtt::MqttError& e) {
         r.fail("topicPrefix", e.what());
     }
-    c.reactionFlushInterval = r.millis("flushIntervalMs", c.reactionFlushInterval, 10);
     c.maxBufferedReactions = r.integer<std::size_t>("maxBuffered", c.maxBufferedReactions, 100, 100'000'000);
+    c.reactionKeepDays = r.integer<int>("keepDays", c.reactionKeepDays, 366, 100'000);
+    c.topBooksTopic = r.string("topTopic", c.topBooksTopic);
+    try {
+        mqtt::validateTopicName(c.topBooksTopic);
+    } catch (const mqtt::MqttError& e) {
+        r.fail("topTopic", e.what());
+    }
     r.rejectUnknownKeys();
     s.rejectUnknownKeys();
     return c;
+}
+
+std::chrono::milliseconds secondsToMillis(std::int64_t s) { return std::chrono::seconds(s); }
+
+AppConfig::Scheduler readScheduler(Section s, const std::string& timeZone) {
+    AppConfig::Scheduler sc;
+    sc.threads = s.integer<std::size_t>("threads", sc.threads, 1, 64);
+    Section jobs = s.section("jobs");
+    for (const std::string& name : jobs.keys()) {
+        Section j = jobs.section(name.c_str());
+        AppConfig::JobSettings job;
+        if (j.has("schedule")) {
+            job.schedule = j.requiredString("schedule");
+            try {
+                scheduler::Schedule::parse(*job.schedule, TimeZone::named(timeZone));
+            } catch (const std::invalid_argument& e) {
+                j.fail("schedule", e.what());
+            }
+        }
+        if (j.has("enabled")) job.enabled = j.boolean("enabled", true);
+        if (j.has("timeoutSec")) job.timeout = secondsToMillis(j.integer<std::int64_t>("timeoutSec", 0, 0, 86400));
+        if (j.has("jitterSec")) job.jitter = secondsToMillis(j.integer<std::int64_t>("jitterSec", 0, 0, 3600));
+        if (j.has("retryAttempts")) job.retryAttempts = j.integer<int>("retryAttempts", 0, 0, 100);
+        if (j.has("retryDelaySec"))
+            job.retryDelay = secondsToMillis(j.integer<std::int64_t>("retryDelaySec", 10, 1, 86400));
+        j.rejectUnknownKeys();
+        sc.jobs.emplace(name, job);
+    }
+    s.rejectUnknownKeys();
+    return sc;
+}
+
+AppConfig::Health readHealth(Section s) {
+    AppConfig::Health h;
+    h.slowDatabase = s.millis("slowDatabaseMs", h.slowDatabase, 1);
+    h.maxMemoryMb = s.integer<std::size_t>("maxMemoryMb", h.maxMemoryMb, 0, 1'000'000);
+    h.reactionBufferWarnPercent = s.integer<int>("reactionBufferWarnPercent", h.reactionBufferWarnPercent, 1, 100);
+    s.rejectUnknownKeys();
+    return h;
 }
 
 log::LogConfig readLog(Section s) {
@@ -325,6 +380,8 @@ AppConfig AppConfig::fromJson(std::string_view text, const std::string& source) 
     config.db = readDatabase(top.section("db"));
     config.server = readServer(top.section("server"));
     config.catalog = readCatalog(top.section("catalog"));
+    config.scheduler = readScheduler(top.section("scheduler"), config.catalog.timeZone);
+    config.health = readHealth(top.section("health"));
     config.log = readLog(top.section("log"));
     top.rejectUnknownKeys();
 

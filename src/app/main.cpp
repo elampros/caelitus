@@ -7,6 +7,7 @@
 #include "caelitus/Version.hpp"
 #include "caelitus/api/CatalogApi.hpp"
 #include "caelitus/api/OpenRpc.hpp"
+#include "caelitus/api/OperationsApi.hpp"
 #include "caelitus/catalog/mariadb/CatalogMigrations.hpp"
 #include "caelitus/db/DbErrors.hpp"
 #include "caelitus/db/Migrations.hpp"
@@ -71,6 +72,7 @@ int main(int argc, char** argv) {
     if (hasFlag(argc, argv, "--openrpc")) {
         api::JsonRpcHandler rpc;
         api::registerCatalogApi(rpc, {});
+        api::registerOperationsApi(rpc, nullptr, nullptr);
         std::cout << api::openRpcDocument(rpc, api::catalogApiInfo()).dump(2) << "\n";
         return 0;
     }
@@ -109,6 +111,9 @@ int main(int argc, char** argv) {
         sigwait(&shutdownSignals, &signal);
         log->info("Received {}, shutting down", signal == SIGINT ? "SIGINT" : "SIGTERM");
         application.stop();
+    } catch (const ConfigError& e) {
+        log->error("Configuration error: {}", e.what());
+        exitCode = 2;
     } catch (const net::NetError& e) {
         log->error("Server error: {}", e.what());
         exitCode = 1;
