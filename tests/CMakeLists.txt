@@ -29,6 +29,7 @@ caelitus_test(cache_tests LIBS caelitus::catalog)
 caelitus_test(scheduler_tests LIBS caelitus::scheduler)
 caelitus_test(catalog_service_tests LIBS caelitus::catalog)
 caelitus_test(api_tests LIBS caelitus::api)
+caelitus_test(cli_tests LIBS caelitus::cli caelitus::api caelitus::net)
 caelitus_test(app_tests LIBS caelitus::catalog_mariadb caelitus::json)
 
 # ---- integration: MariaDB and/or an MQTT broker ----

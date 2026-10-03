@@ -8,6 +8,7 @@
 #     <- catalog                             (domain + services; db/mqtt interfaces only)
 #     <- catalog_mariadb                     (repositories + schema migrations)
 #     <- api, config
+#     <- cli                                 (the --cli client: net, json, config)
 #     <- app                                 (Application, HealthMonitor: wires everything)
 #     <- caelitus                            (the executable: main)
 
@@ -59,7 +60,7 @@ target_include_directories(caelitus_mqtt_mosquitto PRIVATE ${MOSQUITTO_INCLUDE_D
 
 # ---- TCP server ------------------------------------------------------------------
 caelitus_module(net
-        SOURCES net/TcpServer.cpp
+        SOURCES net/TcpClient.cpp net/TcpServer.cpp
         PUBLIC caelitus::log
         PRIVATE caelitus_asio)
 
@@ -99,6 +100,12 @@ caelitus_module(config
         PUBLIC caelitus::db caelitus::mqtt caelitus::net caelitus::log
         PRIVATE caelitus::json caelitus::scheduler)
 
+# ---- the command-line client (caelitus --cli) ------------------------------------
+caelitus_module(cli
+        SOURCES cli/Cli.cpp cli/Format.cpp cli/Params.cpp
+        PUBLIC caelitus::json
+        PRIVATE caelitus::net caelitus::config)
+
 # ---- the server ----------------------------------------------------------------
 # The wiring (Application, HealthMonitor) is a library of its own, so the
 # end-to-end tests can start the real server in-process.
@@ -109,7 +116,7 @@ caelitus_module(app
 
 add_executable(caelitus app/main.cpp)
 target_include_directories(caelitus PRIVATE ${PROJECT_SOURCE_DIR}/src)
-target_link_libraries(caelitus PRIVATE caelitus::app caelitus_build_options)
+target_link_libraries(caelitus PRIVATE caelitus::app caelitus::cli caelitus_build_options)
 
 # Regenerate the committed API description and database schema:
 #   cmake --build <dir> --target openrpc      -> docs/openrpc.json

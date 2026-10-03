@@ -26,7 +26,7 @@ Read it top to bottom once; afterwards use the table of contents.
 3. [Prerequisites](#3-prerequisites)
 4. [Building](#4-building)
 5. [Running the server](#5-running-the-server)
-6. [Talking to the server: the JSON-RPC API](#6-talking-to-the-server-the-json-rpc-api)
+6. [Talking to the server: the JSON-RPC API](#6-talking-to-the-server-the-json-rpc-api) (including [the command-line client](#the-command-line-client-caelitus---cli))
 7. [MQTT: likes in, events out](#7-mqtt-likes-in-events-out)
 8. [Architecture](#8-architecture)
 9. [The modules, one by one](#9-the-modules-one-by-one) (including [scheduled jobs and health](#scheduled-jobs-and-health))
@@ -60,6 +60,7 @@ and free-form **tags**, readers' **reviews** (with a 1-5 rating), and
 | Self-describing API | `rpc.discover` returns an [OpenRPC](https://open-rpc.org) document; the web UI's TypeScript types are generated from it |
 | Scheduled jobs | A built-in scheduler (`every 15s`, `rate 1s`, `cron 0 3 * * *` in Athens time) runs the periodic work; jobs are configured in `config.json` and can be listed, run, paused and resumed over JSON-RPC |
 | Health | A health check every 15 seconds (database, MQTT, cache, server, likes, memory, threads, jobs) logs what goes wrong and answers `system.health` |
+| Command-line client | `caelitus --cli books.get 42`: the same executable calls any method of a running server, with help and typed parameters read from the server itself |
 | Operations | Graceful shutdown (no request or like lost), automatic schema migrations, reconnects to MQTT and the database, an online/offline status topic, throttled logs |
 
 The server is a single executable, `caelitus`, with a JSON configuration file.
@@ -99,7 +100,7 @@ CAELITUS_DB_PASSWORD=caelitus-dev ./build/asan/src/caelitus
 
 # in another terminal: sample data (once) and a request
 docker exec -i caelitus-mariadb mariadb -ucaelitus -pcaelitus-dev caelitus < db/sample/catalog.sql   # only into an EMPTY database
-printf '{"jsonrpc":"2.0","id":1,"method":"books.search","params":{"pageSize":2}}\0' | nc -q1 127.0.0.1 9000
+./build/asan/src/caelitus --cli books.search --pageSize 2
 ```
 
 > Load `catalog.sql` **before** the server's first start, or into a database
@@ -295,7 +296,65 @@ Also supported: **batches** (a JSON array of up to 100 requests, answered with
 an array) and **notifications** (a request without `id`, which gets no answer).
 Parameters are always passed **by name** (an object), never by position.
 
-### Trying it from the shell
+### The command-line client: `caelitus --cli`
+
+The server's own executable is also its client. With `--cli` it does not start
+a server: it connects to a running one, reads the list of methods and their
+parameters from it (`rpc.discover`), and calls the method you name:
+
+```bash
+caelitus --cli                                   # every method, grouped
+caelitus --cli help books.search                 # one method's parameters
+caelitus --cli system.health
+caelitus --cli books.get 42                      # a required parameter by position
+caelitus --cli books.search --title=dune --sort publishedAsc --pageSize 5
+caelitus --cli books.create --title Dune --publishedOn 1965-08-01 --language en \
+              --categoryId 1 --authorIds 1 --tags sci-fi,classic --reactionsEnabled
+caelitus --cli scheduler.pause top-books
+caelitus --cli --json books.search --tags=classic | jq -r '.items[].title'
+```
+
+(In a build tree the executable is `build/asan/src/caelitus`; in Docker:
+`docker compose -f docker/compose.yml exec caelitus caelitus --cli system.health`.)
+
+Because the methods come from the server, **every method works without any
+client code**, including ones added later, and the client cannot fall out of
+step with the server it talks to.
+
+| You type | It sends |
+|---|---|
+| `--name=value` or `--name value` | parameter `name`, converted to its type from the schema (`--id=42` is the integer 42, `--label=007` stays a string) |
+| `--flag` | a boolean parameter set to true (`--flag=false` to clear it) |
+| `--tags=a,b`, `--tags a --tags b`, `--ids='[1,2]'` | an array |
+| `42`, `top-books` (no `--`) | the next **required** parameter not given by name |
+| `'{"id": 42}'` | several parameters at once, as JSON |
+
+Mistakes are caught **before anything is sent**: an unknown method or parameter
+(`did you mean --title?`), a value of the wrong type, a missing required
+parameter. Limits (lengths, ranges) are checked by the server, whose answer is
+shown as `--pageSize: must be at most 100`.
+
+| Option (before the method) | Default |
+|---|---|
+| `--host <name>` | `$CAELITUS_RPC_HOST`, else `server.bindAddress` if it is a specific address, else `127.0.0.1` |
+| `--port <port>` | `$CAELITUS_RPC_PORT`, else `server.port` of the configuration file, else 9000 |
+| `--config <file>` | found like the server finds it; **only the `server` section is read**, so no password is needed |
+| `--timeout <seconds>` | 10 |
+| `--json` | compact JSON on stdout, for scripts (may also come after the method) |
+| `--no-color` | colors only on a terminal, and never with `$NO_COLOR` (may also come after the method) |
+
+Results go to stdout, errors to stderr, and the **exit code** says what
+happened: `0` success, `1` the server answered with an error, `2` bad command
+line, `3` no server (or no reply in time). So it works in scripts and health
+checks:
+
+```bash
+caelitus --cli --timeout 2 system.ping >/dev/null || echo "caelitus is down"
+```
+
+### Raw requests from the shell
+
+Without the client, any tool that can send bytes over TCP will do:
 
 ```bash
 rpc() { printf '%s\0' "$1" | nc -q1 127.0.0.1 9000 | tr -d '\0'; echo; }
@@ -534,7 +593,8 @@ flowchart BT
     scheduler --> base
     api --> catalog & net & mqtt & scheduler
     config --> db & mqtt & net
-    app["app + caelitus (executable)"] --> api & config & catalog_mariadb & db_mariadb & mqtt_mosquitto & scheduler
+    cli --> net & config & base
+    app["app + caelitus (executable)"] --> api & config & catalog_mariadb & db_mariadb & mqtt_mosquitto & scheduler & cli
 ```
 
 | Library | Directory | Purpose |
@@ -548,11 +608,12 @@ flowchart BT
 | `db_mariadb` | `db/mariadb/` | The MariaDB driver behind `db` |
 | `mqtt` | `mqtt/` | MQTT client logic: subscriptions, dispatch, status, statistics |
 | `mqtt_mosquitto` | `mqtt/mosquitto/` | The libmosquitto transport behind `mqtt` |
-| `net` | `net/` | Asynchronous TCP server for `\0`-terminated messages |
+| `net` | `net/` | Asynchronous TCP server for `\0`-terminated messages, and a small blocking client |
 | `catalog` | `catalog/domain/`, `catalog/service/` | The business: entities, rules, services |
 | `catalog_mariadb` | `catalog/mariadb/` | SQL implementations of the catalog repositories; the schema migrations |
 | `api` | `api/` | JSON-RPC protocol, the catalog and operations (scheduler, health) methods, OpenRPC, the MQTT like listener |
 | `config` | `config/` | Loading and validating `config.json` |
+| `cli` | `cli/` | The `caelitus --cli` client: arguments to JSON-RPC calls, help, output |
 | `app` + executable | `app/` | `Application` (wiring, the job list), `HealthMonitor`, and `main()` |
 
 Each library's **public headers** are in `include/caelitus/<dir>/`; its `.cpp`
@@ -762,6 +823,10 @@ a maximum message size (1 MiB), a limit of pipelined requests per connection
 (beyond it the server stops reading from that client: backpressure), and an idle
 timeout. It knows nothing about JSON; it only moves `\0`-terminated messages.
 
+`net::TcpClient` is the other end: a blocking client (plain POSIX sockets) that
+sends one message and waits for its reply, every step bounded by a timeout. The
+`--cli` client uses it; the server does not.
+
 ### mqtt: the MQTT client
 
 `MqttClientBase` contains everything that does not depend on the library:
@@ -783,6 +848,25 @@ timeout. It knows nothing about JSON; it only moves `\0`-terminated messages.
 `${ENV}` values, applies defaults, and validates every value. **Unknown keys are
 errors**: a typo such as `"prot": 9000` stops the server with
 `…/config.json: server.prot: unknown key` instead of being silently ignored.
+
+### cli: the command-line client
+
+`cli::run()` is what `main()` calls for `caelitus --cli …` (usage in
+[section 6](#the-command-line-client-caelitus---cli)). It holds no list of
+methods: on every run it asks the server for its OpenRPC document and works
+from that.
+
+| Piece | Does |
+|---|---|
+| `parseCommandLine()` | Splits client options (`--host`, `--port`, …) from the method and its arguments |
+| `resolveEndpoint()` | Option → environment → `server` section of the configuration → defaults |
+| `buildParams()` | Arguments → the `params` object, converting each value by its parameter's schema |
+| `methodHelp()`, `methodList()` | Help text from the OpenRPC document |
+| `formatJson()` | Indented, colored output |
+
+The connection is a `cli::Connector`, so tests can give it a fake server; the
+real one is `net::TcpClient`. One connection serves both the `rpc.discover`
+and the call.
 
 ### Scheduled jobs and health
 
@@ -826,9 +910,9 @@ running, next run, last result, last error, counters); `scheduler.run`,
 saved: after a restart, `"enabled": false` in the configuration decides.
 
 ```bash
-rpc '{"jsonrpc":"2.0","id":1,"method":"scheduler.list"}'
-rpc '{"jsonrpc":"2.0","id":2,"method":"scheduler.pause","params":{"name":"top-books"}}'
-rpc '{"jsonrpc":"2.0","id":3,"method":"scheduler.run","params":{"name":"reaction-cleanup"}}'
+caelitus --cli scheduler.list
+caelitus --cli scheduler.pause top-books
+caelitus --cli scheduler.run reaction-cleanup
 ```
 
 **Configuration** (section `scheduler`; see [section 11](#11-configuration-reference)):
@@ -875,7 +959,7 @@ a few seconds:
 ```
 
 ```bash
-rpc '{"jsonrpc":"2.0","id":1,"method":"system.health"}'
+caelitus --cli system.health
 # {"status":"ok","problems":[],"uptimeSeconds":3600,"database":{"up":true,"pingMs":0.6,...},
 #  "bookCache":{"books":528,"approxBytes":50897,...},"process":{"memoryBytes":122400768,"threads":16},...}
 ```
@@ -1099,6 +1183,7 @@ handled, `info` is the story of the process (start, stop, connect), `debug` and
 | `tcp_tests` | unit | Framing, ordering, limits, backpressure, shutdown (real sockets on localhost) |
 | `cache_tests`, `catalog_service_tests` | unit | The cache (incl. its memory estimate); every service rule (in-memory fakes) |
 | `api_tests` | unit | JSON-RPC protocol, every method over fakes, results checked against their schemas, OpenRPC |
+| `cli_tests` | unit | The `--cli` client: argument conversion, help, host/port lookup, exit codes, timeouts (against a real TCP server) |
 | `app_tests` | unit | Generated files are current; sample data passes the rules |
 | `db_integration_tests` | integration | The MariaDB driver and the db layer against a real server |
 | `catalog_integration_tests` | integration | The SQL repositories against a real server |
@@ -1313,6 +1398,8 @@ Any other component can also add jobs at runtime through
 | `Configuration error: …: db.password: environment variable CAELITUS_DB_PASSWORD is not set` | `export CAELITUS_DB_PASSWORD=caelitus-dev` (or your password) |
 | `Database error: Access denied for user …` | Wrong user/password, or the database container was created with other credentials; `docker compose -f dev/docker-compose.yml down -v` recreates it |
 | `Server error: Cannot listen on 0.0.0.0:9000: … Address already in use` | Another caelitus (or the Docker stack) uses port 9000: `ss -ltnp \| grep 9000` |
+| `caelitus --cli: Cannot connect to 127.0.0.1:9000: Connection refused` (exit 3) | No server there: start it, or point the client elsewhere with `--port` / `--host` (the Docker stack's server is also on 9000) |
+| `caelitus --cli: books.search has no parameter --port; …` | Everything after the method is the method's; put `--host`, `--port`, `--timeout`, `--config` before it (only `--json` and `--no-color` may come after) |
 | `MQTT broker not reachable yet` | No broker on 1883. The server keeps working; start mosquitto and it connects by itself |
 | Likes do not count | The book's `reactionsEnabled` is false (`books.setReactionsEnabled`), or the topic prefix differs from `catalog.reactions.topicPrefix` |
 | `Migration 002 (…) was changed after it was applied; add a new migration instead` | Someone edited an applied migration. Undo the edit and add a new migration instead |
@@ -1361,7 +1448,8 @@ caelitus/
 ├── cmake/                              dependencies, compiler options, version header template
 ├── include/caelitus/<module>/          public headers, one directory per module
 ├── src/<module>/                       implementation and private headers
-│   └── app/                            main.cpp, Application (the wiring)
+│   ├── app/                            main.cpp, Application (the wiring)
+│   └── cli/                            the caelitus --cli client
 ├── tests/                              unit and integration tests, fakes, test harness
 ├── config/config.json                  configuration for local development
 ├── db/

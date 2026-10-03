@@ -92,6 +92,9 @@ net::TcpServer accepts connections, splits the byte stream at `\0` bytes and
 hands each message to a net::IMessageHandler on a worker pool, answering in
 order per connection. It knows nothing about JSON-RPC.
 
+net::TcpClient is the other end: a blocking client that sends one message and
+waits for its reply, with a timeout; the `--cli` client uses it.
+
 Library: `caelitus::net`. Depends on: @ref log, Asio.
 
 @defgroup catalog catalog: book catalog domain and services
@@ -129,6 +132,16 @@ Library: `caelitus::api`. Depends on: @ref catalog, @ref json, @ref net, @ref mq
 @brief Loads and validates `config.json`, with `${ENV_VAR}` substitution.
 
 Library: `caelitus::config`. Depends on: @ref db, @ref mqtt, @ref net, @ref log, @ref json.
+
+@defgroup cli cli: the command-line client
+@brief `caelitus --cli`: calls any JSON-RPC method of a running server.
+
+cli::run() connects (net::TcpClient), reads the server's OpenRPC document with
+`rpc.discover`, and then lists the methods, prints a method's help, or turns
+the command-line words into a call: cli::buildParams() converts each value by
+its parameter's schema. Exit codes are cli::ExitCode.
+
+Library: `caelitus::cli`. Depends on: @ref json, @ref net, @ref config.
 
 @defgroup app app: the server
 @brief `main()`; app::Application, which creates, wires, starts and stops every

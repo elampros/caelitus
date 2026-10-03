@@ -9,6 +9,7 @@
 #include "caelitus/api/OpenRpc.hpp"
 #include "caelitus/api/OperationsApi.hpp"
 #include "caelitus/catalog/mariadb/CatalogMigrations.hpp"
+#include "caelitus/cli/Cli.hpp"
 #include "caelitus/db/DbErrors.hpp"
 #include "caelitus/db/Migrations.hpp"
 #include "caelitus/net/TcpServer.hpp"
@@ -16,17 +17,21 @@
 #include <csignal>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace {
 
 using namespace caelitus;
 
 constexpr const char* kUsage = R"(Usage: caelitus [options]
+       caelitus --cli [client options] [<method> [parameters...]]
 
 Runs the caelitus book catalog server: JSON-RPC 2.0 over TCP, MariaDB storage,
 likes/dislikes over MQTT.
 
 Options:
+  --cli ...         Do not start a server: connect to a running one and call a
+                    method (caelitus --cli --help for its options).
   --config <file>   Configuration file. Default: $CAELITUS_CONFIG, then
                     ./config/config.json, then config/config.json in the
                     executable's directory or any directory above it.
@@ -63,9 +68,19 @@ sigset_t blockShutdownSignals() {
 }  // namespace
 
 /// Parses the command line, loads the configuration, runs app::Application
-/// until SIGINT/SIGTERM, then stops it gracefully.
-/// @return 0 after a clean stop, 1 on a runtime error, 2 for bad usage or configuration.
+/// until SIGINT/SIGTERM, then stops it gracefully. With `--cli`, runs the
+/// command-line client (cli::run()) instead.
+/// @return 0 after a clean stop, 1 on a runtime error, 2 for bad usage or configuration
+///         (`--cli`: see cli::ExitCode).
 int main(int argc, char** argv) {
+    // Client mode: every other argument belongs to the client.
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) != "--cli") continue;
+        std::vector<std::string> args(argv + 1, argv + argc);
+        args.erase(args.begin() + (i - 1));
+        return cli::run(args, std::cout, std::cerr);
+    }
+
     // Commands that need no configuration.
     if (hasFlag(argc, argv, "--help")) return std::cout << kUsage, 0;
     if (hasFlag(argc, argv, "--version")) return std::cout << "caelitus " << kVersion << "\n", 0;

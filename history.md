@@ -485,6 +485,57 @@ against the development database showed the five jobs with the cleanup planned
 for 03:00 Athens time. Pausing the test database showed the health job's warning
 and, after it returned, the "resolved" lines.
 
+## Session 3: two frozen laptops, and a client
+
+### 25. Why the laptop froze
+
+Two sessions ended with the whole computer frozen, both at the same moment:
+the final verification build, `cmake --build --preset asan -j`. With the
+Makefile generator a bare `-j` means *no limit*: all ~52 files compiled at once,
+and an ASan-instrumented compile takes 450–800 MB (`api_tests.cpp` peaked at
+813 MB). That is 25+ GB on a laptop with 7.4 GB of RAM, most of it already used
+by the IDE and a browser. The system swapped until it stopped responding; the
+kernel's OOM killer never ran, so the logs simply stop.
+
+- The build presets now carry `"jobs": 3`; the README's commands no longer pass
+  `-j` (a bare `-j` on the command line would override the preset), and the
+  server's Dockerfile builds with `-j3`.
+- The owner installed `earlyoom`, which kills the biggest process before memory
+  runs out instead of letting the system freeze.
+
+The interrupted verification was then run: formatting clean, 14/14 tests under
+AddressSanitizer and under ThreadSanitizer (which needs `setarch -R` on this
+kernel), Doxygen without warnings.
+
+### 26. A command-line client in the server's executable
+
+The owner's idea: a flag on the executable that, instead of starting the
+server, connects to one. `caelitus --cli <method> [parameters]`.
+
+The design point was where the client learns the methods. It asks the server
+(`rpc.discover`) on every run, so every method, today's and future ones, works
+without client code, and the client cannot drift from the server's version.
+The schemas in that document turn words into typed JSON: `--id=42` becomes the
+integer 42, `--tags=a,b` an array, a bare `--flag` true, and a word without
+`--` fills the next required parameter (`books.get 42`,
+`scheduler.pause top-books`). Unknown methods and parameters get a "did you
+mean" suggestion before anything is sent; limits stay the server's job.
+
+Agreed with the owner: the flag name `--cli`; one-shot commands first, an
+interactive prompt later; `--name=value` syntax.
+
+- `net::TcpClient`: a blocking POSIX client, every step bounded by a timeout.
+- New library `cli`: argument parsing, endpoint lookup (option, then
+  `CAELITUS_RPC_HOST`/`CAELITUS_RPC_PORT`, then the configuration's `server`
+  section only, so no database password is needed, then 9000), help and colored
+  output. Exit codes: 0 ok, 1 server error, 2 bad usage, 3 unreachable.
+- 18 tests, most of them against a real `TcpServer` with a test API.
+
+AddressSanitizer caught a use-after-free in the first version: nlohmann's
+`value("methods", Json::array())` returns a *copy*, and the code kept pointers
+into that temporary. A helper that returns a reference to the real array fixed
+every such place.
+
 ## Decisions at a glance
 
 | Decision | Made by | Why |
@@ -507,6 +558,9 @@ and, after it returned, the "resolved" lines.
 | Driver code in separate libraries | Assistant (owner: "any refactoring you want") | The build enforces the architecture |
 | A reusable scheduler; jobs in `config.json`; start/stop over JSON-RPC; a health job every 15 s | Owner | Periodic work in one place, controllable while running |
 | every / rate / cron schedules, no overlap, retries, timeouts reported | Assistant | Covers flushes, reloads and nightly work with one mechanism |
+| Builds limited to 3 parallel jobs | Assistant, after two freezes | Unlimited `make -j` exhausted the laptop's memory |
+| A client inside the executable (`caelitus --cli`) | **Owner** | One binary to ship; no separate tool |
+| The client reads the methods from `rpc.discover` at run time | Assistant, accepted | No client code per method; never out of step with the server |
 
 ## Bugs found and fixed
 
@@ -523,11 +577,13 @@ and, after it returned, the "resolved" lines.
 | Lambda capturing a structured binding (C++20 only) | clang warnings | Plain variable |
 | Configuration no longer found next to the moved executable | Documentation review | Search every parent directory |
 | Live ranking said "no likes" when the server was unreachable | Screenshot with the server stopped | An "unavailable" state; the last list is kept |
+| The laptop froze during builds | The owner (twice) | `"jobs": 3` in the presets; no bare `-j` |
+| Pointers into a temporary JSON copy in the CLI | AddressSanitizer | Reference-returning `arrayAt()` |
 
 ## Still open
 
-- The command-line tool (`caelitus` subcommands and `caelitusctl`), agreed as
-  the next step after the scheduler.
+- The CLI's second step: an interactive prompt (`caelitus --cli` with history
+  and tab completion), and tables instead of JSON for the most used methods.
 - Automated tests for the web gateway and an end-to-end UI test (Playwright),
   proposed at the end of step 12.
 - From the original plan: full-text search, and keeping several server instances'
